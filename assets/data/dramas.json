@@ -1,0 +1,12 @@
+[
+  {
+    "id": "arafta",
+    "title": "Arafta",
+    "description": "An epic drama series spanning 60 captivating episodes",
+    "imageUrl": "https://picsum.photos/seed/arafta/300/400",
+    "totalEpisodes": 60,
+    "genre": "Drama",
+    "rating": 9.0,
+    "releaseYear": 2024
+  }
+]

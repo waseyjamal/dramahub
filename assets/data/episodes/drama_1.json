@@ -1,0 +1,54 @@
+[
+  {
+    "id": "ep_1_1",
+    "dramaId": "drama_1",
+    "episodeNumber": 1,
+    "title": "First Encounter",
+    "description": "Two souls meet under the cherry blossoms",
+    "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "downloadUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "thumbnailUrl": "https://picsum.photos/seed/ep1/300/200",
+    "durationMinutes": 45,
+    "releaseDate": "2024-01-01T00:00:00.000Z",
+    "isPremium": false
+  },
+  {
+    "id": "ep_1_2",
+    "dramaId": "drama_1",
+    "episodeNumber": 2,
+    "title": "Growing Feelings",
+    "description": "Unexpected emotions begin to bloom",
+    "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "downloadUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "thumbnailUrl": "https://picsum.photos/seed/ep2/300/200",
+    "durationMinutes": 48,
+    "releaseDate": "2024-01-08T00:00:00.000Z",
+    "isPremium": false
+  },
+  {
+    "id": "ep_1_3",
+    "dramaId": "drama_1",
+    "episodeNumber": 3,
+    "title": "Secret Revealed",
+    "description": "Premium episode: A shocking truth comes to light",
+    "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "downloadUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "thumbnailUrl": "https://picsum.photos/seed/ep3/300/200",
+    "durationMinutes": 50,
+    "releaseDate": "2024-01-15T00:00:00.000Z",
+    "isPremium": true
+  },
+  {
+    "id": "ep_1_4",
+    "dramaId": "drama_1",
+    "episodeNumber": 4,
+    "title": "Coming Soon",
+    "description": "The journey continues...",
+    "videoUrl": "",
+    "downloadUrl": "",
+    "thumbnailUrl": "https://picsum.photos/seed/ep4/300/200",
+    "durationMinutes": 47,
+    "releaseDate": "2024-12-22T00:00:00.000Z",
+    "isPremium": false
+  }
+]

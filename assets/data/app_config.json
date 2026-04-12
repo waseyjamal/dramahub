@@ -1,0 +1,15 @@
+{
+    "appName": "Drama Hub",
+    "telegramUrl": "https://t.me/dramahub",
+    "showHeroSection": true,
+    "showTelegramCTA": true,
+    "showMembershipPromo": true,
+    "enablePremiumBadge": true,
+    "enableDownloadScreen": true,
+    "interstitialEnabled": true,
+    "rewardedEnabled": true,
+    "maxInterstitialPerSession": 5,
+    "interstitialCooldownSeconds": 60,
+    "latestVersion": 1,
+    "forceUpdate": false
+}
