@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
 import 'package:drama_hub/routes/app_routes.dart';
@@ -15,8 +16,21 @@ import 'package:drama_hub/utils/constants.dart';
 ///
 /// Displays countdown timer for unreleased episodes
 /// Auto-redirects to video screen when countdown reaches zero
-class UpcomingScreen extends StatelessWidget {
+class UpcomingScreen extends StatefulWidget {
   const UpcomingScreen({super.key});
+
+  @override
+  State<UpcomingScreen> createState() => _UpcomingScreenState();
+}
+
+class _UpcomingScreenState extends State<UpcomingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 1), () {
+      AdService.instance.showInterstitialForScreen('upcoming_screen');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

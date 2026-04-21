@@ -15,8 +15,11 @@ class RemoteConfigService {
 
   Future<Map<String, dynamic>> fetchAppConfig() async {
     try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final url = '$_configUrl?t=$timestamp';
+
       final response = await http
-          .get(Uri.parse(_configUrl))
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {

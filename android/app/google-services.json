@@ -16,6 +16,31 @@
       "api_key": [
         {
           "current_key": "AIzaSyCxKY6D54XPUGq7HlN6iIn_-_Me00sxSb8"
+        },
+        {
+          "current_key": "AIzaSyDZlKxTIUDFtBFPsTkBkEbrsc5DeRY9Inw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:205455617905:android:1f1bc1ba4bf011166450d0",
+        "android_client_info": {
+          "package_name": "com.example.dramahub_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxKY6D54XPUGq7HlN6iIn_-_Me00sxSb8"
+        },
+        {
+          "current_key": "AIzaSyDZlKxTIUDFtBFPsTkBkEbrsc5DeRY9Inw"
         }
       ],
       "services": {

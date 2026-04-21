@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Writes analytics events to Firestore via REST API
 /// Called from EpisodesController when episode is opened
@@ -59,6 +60,23 @@ class AnalyticsWriterService {
     }
   }
 
+  Future<Map<String, String>> _getHeaders() async {
+    try {
+      var user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+        user = FirebaseAuth.instance.currentUser;
+      }
+      final token = await user!.getIdToken();
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+    } catch (e) {
+      return {'Content-Type': 'application/json'};
+    }
+  }
+
   /// POST to create a new document (auto-ID)
   Future<void> _writeDocument(
     String collection,
@@ -71,7 +89,7 @@ class AnalyticsWriterService {
 
     final response = await http.post(
       Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _getHeaders(),
       body: jsonEncode({'fields': fields}),
     );
 
@@ -119,7 +137,7 @@ class AnalyticsWriterService {
 
     final response = await http.post(
       Uri.parse(commitUrl),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _getHeaders(),
       body: jsonEncode(body),
     );
 

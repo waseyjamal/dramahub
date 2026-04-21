@@ -31,6 +31,7 @@ class AdService extends GetxService {
     _sessionStartTime = DateTime.now();
   }
 
+
   Future<void> _initAppodeal() async {
     Appodeal.setTesting(!kReleaseMode);
     Appodeal.setLogLevel(

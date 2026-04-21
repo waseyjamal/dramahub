@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:drama_hub/controllers/episodes_controller.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -11,9 +13,23 @@ import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 
-class WatchlistScreen extends StatelessWidget {
+class WatchlistScreen extends StatefulWidget {
   final VoidCallback? onBrowseTapped;
   const WatchlistScreen({super.key, this.onBrowseTapped});
+
+  @override
+  State<WatchlistScreen> createState() => _WatchlistScreenState();
+}
+
+class _WatchlistScreenState extends State<WatchlistScreen> {
+  void _goToEpisodesSkipAd(HomeController homeController, drama) {
+    homeController.goToEpisodesSkipAd(drama);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +69,7 @@ class WatchlistScreen extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      onBrowseTapped?.call(); // ✅ Fixed — uses callback
+                      widget.onBrowseTapped?.call(); // ✅ Fixed — uses callback
                     },
                     icon: const Icon(Icons.explore_rounded),
                     label: const Text('Browse Dramas'),
@@ -106,7 +122,15 @@ class WatchlistScreen extends StatelessWidget {
                       drama: drama,
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        homeController.goToEpisodes(drama);
+                        AdService.instance.showRewardedForScreen(
+                          'watchlist_screen',
+                          onRewarded: () {
+                            _goToEpisodesSkipAd(homeController, drama);
+                          },
+                          onNotAvailable: () {
+                            _goToEpisodesSkipAd(homeController, drama);
+                          },
+                        );
                       },
                       onRemove: () => controller.toggleWatchlist(drama),
                     );

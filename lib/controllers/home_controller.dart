@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
@@ -289,6 +290,17 @@ class HomeController extends GetxController {
     Get.toNamed(
       AppRoutes.episodes,
       arguments: drama,
+    )?.then((_) => loadLastWatched());
+  }
+
+  void goToEpisodesSkipAd(DramaModel drama) {
+    _analytics.logEvent(
+      name: 'drama_opened',
+      parameters: {'drama_id': drama.id, 'drama_title': drama.title},
+    );
+    Get.toNamed(
+      AppRoutes.episodes,
+      arguments: {'drama': drama, 'skipAd': true},
     )?.then((_) => loadLastWatched());
   }
 

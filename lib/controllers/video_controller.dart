@@ -17,12 +17,6 @@ class VideoController extends GetxController {
   String dramaTitle = '';
   String dramaBanner = '';
 
-  // Download unlock state (session-based)
-  final RxBool isDownloadUnlocked = false.obs;
-
-  // Rewarded ad loading state
-  final RxBool isRewardLoading = false.obs;
-
   // WebView loading state
   final RxBool isVideoLoading = true.obs;
 
@@ -30,21 +24,20 @@ class VideoController extends GetxController {
   // false = show thumbnail + play button
   // true  = show WebView player
   final RxBool isPlayerInitialized = false.obs;
-
   final RxBool hasVideoError = false.obs;
+
+  // Download navigation loading state
+  final RxBool isDownloadLoading = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-
-    // ✅ 3.2 — Safe cast with null check (was hard cast — LateInitializationError if null)
     final args = Get.arguments;
     if (args == null) {
       Future.microtask(() => Get.back());
       return;
     }
     if (args is EpisodeModel) {
-      // ✅ backward compat — old callers passing just episode still work
       episode = args;
       dramaTitle = '';
       dramaBanner = '';
@@ -56,7 +49,7 @@ class VideoController extends GetxController {
       }
       episode = ep;
       dramaTitle = args['dramaTitle'] ?? '';
-      dramaBanner = args['dramaBanner'] ?? ''; // ✅ drama banner for thumbnail
+      dramaBanner = args['dramaBanner'] ?? '';
     } else {
       Future.microtask(() => Get.back());
       return;
@@ -70,34 +63,10 @@ class VideoController extends GetxController {
     super.onClose();
   }
 
-  /// Unlocks download via rewarded ad (if enabled), or directly if ads disabled/unavailable
-  Future<void> unlockDownload() async {
-    if (isRewardLoading.value) return;
-    try {
-      isRewardLoading.value = true;
-      await _adService.showRewardedForScreen(
-        'video_screen',
-        onRewarded: () {
-          isDownloadUnlocked.value = true;
-        },
-        onNotAvailable: () {
-          // Ad disabled or not loaded — unlock directly, no gate
-          isDownloadUnlocked.value = true;
-        },
-      );
-    } catch (e) {
-      debugPrint('Rewarded ad error: $e');
-      // Even on error, don't block the user
-      isDownloadUnlocked.value = true;
-    } finally {
-      isRewardLoading.value = false;
-    }
-  }
-
   /// Navigates to download screen
-  /// Uses episode.watchUrl pre-built from videoId
-  Future<void> launchDownload() async {
-    if (!isDownloadUnlocked.value) return;
+  /// Shows rewarded ad first if enabled in config, then goes to DownloadScreen
+  Future<void> goToDownload() async {
+    if (isDownloadLoading.value) return;
 
     if (episode.watchUrl.isEmpty) {
       AppSnackbar.error(
@@ -107,9 +76,34 @@ class VideoController extends GetxController {
       return;
     }
 
-    Get.toNamed(
-      AppRoutes.download,
-      arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
-    );
+    try {
+      isDownloadLoading.value = true;
+
+      await _adService.showRewardedForScreen(
+        'video_screen',
+        onRewarded: () {
+          Get.toNamed(
+            AppRoutes.download,
+            arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
+          );
+        },
+        onNotAvailable: () {
+          // Rewarded not available or disabled — go directly
+          Get.toNamed(
+            AppRoutes.download,
+            arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Download ad error: $e');
+      // On any error — go directly, never block user
+      Get.toNamed(
+        AppRoutes.download,
+        arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
+      );
+    } finally {
+      isDownloadLoading.value = false;
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -17,8 +18,21 @@ import 'package:drama_hub/utils/app_snackbar.dart';
 /// - Shows YouTube watch URL
 /// - Share via Snaptube (Android)
 /// - Open via 9xbuddy (PC / iPhone)
-class DownloadScreen extends StatelessWidget {
+class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key});
+
+  @override
+  State<DownloadScreen> createState() => _DownloadScreenState();
+}
+
+class _DownloadScreenState extends State<DownloadScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 1), () {
+      AdService.instance.showInterstitialForScreen('download_screen');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

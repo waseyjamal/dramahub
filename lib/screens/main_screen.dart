@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/ui_system/colors.dart';
@@ -58,6 +59,22 @@ class _MainScreenState extends State<MainScreen> {
   void _onTabTapped(int index) {
     HapticFeedback.lightImpact();
     setState(() => _currentIndex = index);
+    _triggerTabAd(index);
+  }
+
+  void _triggerTabAd(int index) {
+    switch (index) {
+      case 1:
+        Future.delayed(const Duration(seconds: 1), () {
+          AdService.instance.showInterstitialForScreen('watchlist_screen');
+        });
+        break;
+      case 2:
+        Future.delayed(const Duration(seconds: 1), () {
+          AdService.instance.showInterstitialForScreen('history_screen');
+        });
+        break;
+    }
   }
 
   @override

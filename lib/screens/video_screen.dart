@@ -532,7 +532,6 @@ class _EpisodeInfoCard extends StatelessWidget {
 /// Download section
 class _DownloadSection extends StatelessWidget {
   final VideoController controller;
-
   const _DownloadSection({required this.controller});
 
   @override
@@ -549,50 +548,35 @@ class _DownloadSection extends StatelessWidget {
           children: [
             Text('Download Episode', style: AppTypography.title),
             const SizedBox(height: AppSpacing.md),
-
-            controller.isDownloadUnlocked.value
-                ? ElevatedButton(
-                    onPressed: () => controller.launchDownload(),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.lg,
+            ElevatedButton.icon(
+              onPressed: controller.isDownloadLoading.value
+                  ? null
+                  : controller.goToDownload,
+              icon: controller.isDownloadLoading.value
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white70),
                       ),
-                    ),
-                    child: const Text('Download Now'),
-                  )
-                : ElevatedButton.icon(
-                    onPressed: controller.isRewardLoading.value
-                        ? null
-                        : controller.unlockDownload,
-                    icon: controller.isRewardLoading.value
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white70,
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.ad_units),
-                    label: Text(
-                      controller.isRewardLoading.value
-                          ? 'Loading Ad...'
-                          : 'Unlock Download (Watch Ad)',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.lg,
-                      ),
-                    ),
-                  ),
-
+                    )
+                  : const Icon(Icons.download_rounded),
+              label: Text(
+                controller.isDownloadLoading.value
+                    ? 'Loading...'
+                    : 'Free Download',
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-
             Text(
               'Download opens in external browser.',
-              style: AppTypography.caption.copyWith(color: AppColors.softGrey),
+              style:
+                  AppTypography.caption.copyWith(color: AppColors.softGrey),
               textAlign: TextAlign.center,
             ),
           ],

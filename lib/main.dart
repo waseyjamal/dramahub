@@ -1,9 +1,9 @@
 import 'package:drama_hub/services/ad_config_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:drama_hub/firebase_options.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:drama_hub/config/app_config_service.dart';
@@ -16,9 +16,8 @@ import 'package:drama_hub/utils/constants.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'app.dart';
 
-
 /// Current app version
-const int currentAppVersion = 1;
+const int currentAppVersion = 4;
 
 /// Main entry point for Drama Hub app
 Future<void> main() async {
@@ -26,6 +25,12 @@ Future<void> main() async {
 
   // Firebase MUST be first — everything else depends on it
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+  } catch (e) {
+    debugPrint('Anonymous auth failed: $e');
+  }
 
   // Crashlytics setup — sync, fast, must be right after Firebase
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;

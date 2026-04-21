@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
@@ -26,6 +27,9 @@ class _SuggestDramaScreenState extends State<SuggestDramaScreen> {
   @override
   void initState() {
     super.initState();
+    Future.delayed(const Duration(seconds: 1), () {
+      AdService.instance.showInterstitialForScreen('suggest_drama_screen');
+    });
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)

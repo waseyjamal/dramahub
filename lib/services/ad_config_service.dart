@@ -19,8 +19,12 @@ class AdConfigService {
   /// Call this once at app startup
   Future<void> initialize() async {
     try {
+      // ✅ Force fresh fetch by adding a timestamp (bypasses 5-min GitHub cache)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final urlWithCacheBuster = '$_configUrl?t=$timestamp';
+
       final response = await http
-          .get(Uri.parse(_configUrl))
+          .get(Uri.parse(urlWithCacheBuster))
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {

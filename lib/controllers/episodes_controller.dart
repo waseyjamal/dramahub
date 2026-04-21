@@ -24,21 +24,37 @@ class EpisodesController extends GetxController {
   final RxBool hasInternet = true.obs;
   final RxBool hasError = false.obs;
   final RxString errorMessage = ''.obs;
-
   Timer? _searchDebounce;
-
   late DramaModel selectedDrama;
+  bool skipInterstitialOnOpen = false;
 
   @override
   void onInit() {
     super.onInit();
-    // ✅ A-3 — safe guard against null/wrong type arguments
-    // Without this, selectedDrama stays uninitialized → LateInitializationError crash
     if (Get.arguments != null && Get.arguments is DramaModel) {
       selectedDrama = Get.arguments as DramaModel;
+      skipInterstitialOnOpen = false;
       loadEpisodes();
+      Future.delayed(const Duration(seconds: 1), () {
+        _adService.showInterstitialForScreen('episodes_screen');
+      });
+    } else if (Get.arguments != null && Get.arguments is Map) {
+      final args = Get.arguments as Map;
+      final drama = args['drama'];
+      if (drama == null || drama is! DramaModel) {
+        debugPrint('EpisodesController: invalid drama in map — navigating back');
+        Future.microtask(() => Get.back());
+        return;
+      }
+      selectedDrama = drama;
+      skipInterstitialOnOpen = args['skipAd'] == true;
+      loadEpisodes();
+      if (!skipInterstitialOnOpen) {
+        Future.delayed(const Duration(seconds: 1), () {
+          _adService.showInterstitialForScreen('episodes_screen');
+        });
+      }
     } else {
-      // Arguments missing or wrong type — navigate back immediately
       debugPrint('EpisodesController: invalid arguments — navigating back');
       Future.microtask(() => Get.back());
     }
@@ -101,8 +117,12 @@ class EpisodesController extends GetxController {
       Get.toNamed(AppRoutes.upcoming, arguments: episode);
       return;
     }
-    await _adService.showInterstitialForScreen('episodes_screen');
     await saveLastWatched(episode);
+    await _adService.showRewardedForScreen(
+      'episodes_screen',
+      onRewarded: () {},
+      onNotAvailable: () {},
+    );
     _analytics.logEvent(
       name: 'episode_watched',
       parameters: {

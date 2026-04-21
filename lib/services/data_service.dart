@@ -30,8 +30,11 @@ class DataService {
 
   Future<List<DramaModel>> loadDramas() async {
     try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final url = '$_dramasUrl?t=$timestamp';
+
       final response = await http
-          .get(Uri.parse(_dramasUrl))
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
@@ -66,8 +69,9 @@ class DataService {
     if (cached != null) return cached;
 
     try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
       final String remoteUrl =
-          'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/episodes/$dramaId.json';
+          'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/episodes/$dramaId.json?t=$timestamp';
 
       final response = await http
           .get(Uri.parse(remoteUrl))
