@@ -1,4 +1,5 @@
 import 'package:flutter/scheduler.dart';
+import 'package:drama_hub/services/vast_ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/services/data_service.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -21,6 +22,7 @@ class InitialBinding extends Bindings {
     // AdMob SDK warm-up costs 200-400ms — no need to block first paint
     SchedulerBinding.instance.addPostFrameCallback((_) {
       Get.put(AdService(), permanent: true);
+      Get.put(VastAdService(), permanent: true);
     });
 
     // Controllers — all with fenix:true (from fix 4.2)

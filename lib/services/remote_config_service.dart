@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class RemoteConfigService {
   static const String _configUrl =
-      'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/app_config.json';
+      'https://dramahub-data.waseyjamal000.workers.dev/app_config.json';
 
   static const Map<String, dynamic> _defaultConfig = {
     "min_version": 1,

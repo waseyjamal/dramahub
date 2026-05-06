@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:drama_hub/services/ad_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/drama_model.dart';
@@ -14,12 +12,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/utils/constants.dart';
 import 'package:drama_hub/config/app_config_service.dart';
 import 'dart:async';
+import 'package:drama_hub/controllers/episodes_controller.dart';
 
 class HomeController extends GetxController {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
   final DataService _dataService = Get.find<DataService>();
 
   static const int _pageSize = 10;
+  // ✅ Drama cache TTL reduced to 10 minutes — matches episode TTL
+  static const Duration _dramaCacheTTL = Duration(minutes: 10);
+
   final RxInt _currentPage = 1.obs;
   final RxBool hasMoreDramas = false.obs;
 
@@ -40,8 +42,6 @@ class HomeController extends GetxController {
   final RxString lastDramaTitle = ''.obs;
   final RxString lastDramaBanner = ''.obs;
   final RxInt lastEpisodeNumber = 0.obs;
-
-  DateTime? _lastConfigReload;
 
   Timer? _searchDebounce;
 
@@ -85,7 +85,7 @@ class HomeController extends GetxController {
       errorMessage.value = '';
 
       final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         hasInternet.value = false;
         final cached = await _loadCachedDramas();
         if (cached.isNotEmpty) {
@@ -103,40 +103,35 @@ class HomeController extends GetxController {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // ✅ 5.2 — Config reload throttled to 30 min
-      // MUST run BEFORE cache check — version change invalidates cache
-      final now = DateTime.now();
-      if (_lastConfigReload == null ||
-          now.difference(_lastConfigReload!) > const Duration(minutes: 15)) {
-        await AppConfigService.instance.reloadConfig();
-        _lastConfigReload = now;
+      // ✅ FIXED: No more 15-min throttle — reload config on every loadDramas()
+      // app_config.json is tiny (~500 bytes) served from Cloudflare edge
+      // This ensures data_version is always current before cache check
+      await AppConfigService.instance.reloadConfig();
 
-        // ✅ version system — if data_version changed, clear all caches
-        final newVersion = AppConfigService.instance.config.dataVersion;
-        final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
-        if (newVersion != savedVersion) {
-          debugPrint(
-            'data_version changed $savedVersion → $newVersion — clearing caches',
-          );
-          await prefs.remove(StorageKeys.cachedDramas);
-          await prefs.remove(StorageKeys.cachedDramasTime);
-          final keys = prefs.getKeys();
-          for (final key in keys) {
-            if (key.startsWith(StorageKeys.episodesCache) ||
-                key.startsWith(StorageKeys.episodesCacheTime)) {
-              await prefs.remove(key);
-            }
+      // ✅ Version check — clears all caches if data_version bumped
+      final newVersion = AppConfigService.instance.config.dataVersion;
+      final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
+      if (newVersion != savedVersion) {
+        debugPrint(
+          'data_version changed $savedVersion → $newVersion — clearing all caches',
+        );
+        await prefs.remove(StorageKeys.cachedDramas);
+        await prefs.remove(StorageKeys.cachedDramasTime);
+        final keys = prefs.getKeys().toList();
+        for (final key in keys) {
+          if (key.startsWith(StorageKeys.episodesCache) ||
+              key.startsWith(StorageKeys.episodesCacheTime)) {
+            await prefs.remove(key);
           }
-          await prefs.setInt(StorageKeys.dataVersion, newVersion);
         }
+        await prefs.setInt(StorageKeys.dataVersion, newVersion);
       }
 
-      // ✅ 6.3 — Check drama cache AFTER version check
-      // Cache may have been cleared above if version changed
+      // ✅ Check drama cache AFTER version check — 10 min TTL
       final cacheTime = prefs.getInt(StorageKeys.cachedDramasTime) ?? 0;
       final cacheAge = DateTime.now().millisecondsSinceEpoch - cacheTime;
       final isCacheFresh =
-          !forceRefresh && cacheAge < const Duration(hours: 12).inMilliseconds;
+          !forceRefresh && cacheAge < _dramaCacheTTL.inMilliseconds;
 
       if (isCacheFresh) {
         final cached = await _loadCachedDramas();
@@ -147,6 +142,7 @@ class HomeController extends GetxController {
           hasMoreDramas.value = cached.length > _pageSize;
           filteredDramas.assignAll(cached.take(_pageSize).toList());
           _resolveHeroSlider(cached);
+          // ✅ Background refresh latest episodes even on cache hit
           _loadLatestEpisodes(cached);
           isLoading.value = false;
           return;
@@ -203,8 +199,6 @@ class HomeController extends GetxController {
     try {
       final List<Map<String, dynamic>> results = [];
 
-      // ✅ 6.4 — Semaphore: max 5 parallel requests at once
-      // Previously: all 20+ fired simultaneously → GitHub rate limit hit
       const int maxConcurrent = 5;
       int active = 0;
       int index = 0;
@@ -218,7 +212,6 @@ class HomeController extends GetxController {
           final drama = dramas[index++];
           active++;
 
-          // ✅ 6.1 — Each request fully isolated — one failure never affects others
           unawaited(
             (() async {
               try {
@@ -233,7 +226,6 @@ class HomeController extends GetxController {
                   }
                 }
               } catch (e) {
-                // ✅ 6.1 — Isolated: this drama fails silently, others continue
                 debugPrint('Episode load failed for ${drama.id}: $e');
               } finally {
                 active--;
@@ -244,7 +236,6 @@ class HomeController extends GetxController {
       }
 
       await processNext();
-      // Wait for all active requests to finish
       while (active > 0) {
         await Future.delayed(const Duration(milliseconds: 50));
       }
@@ -294,6 +285,7 @@ class HomeController extends GetxController {
   }
 
   void goToEpisodesSkipAd(DramaModel drama) {
+    Get.delete<EpisodesController>(force: true);
     _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
@@ -305,8 +297,6 @@ class HomeController extends GetxController {
   }
 
   void filterDramas(String query) {
-    // ✅ 5.9 — 300ms debounce: cancel previous timer, only filter after pause
-    // Prevents rebuilding grid on every single keystroke
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (query.isEmpty) {
@@ -328,16 +318,11 @@ class HomeController extends GetxController {
   void _preloadImages(List<DramaModel> dramas) {
     final context = Get.context;
     if (context == null) return;
-
-    // ✅ 5.3 — Reduced from 8 dramas × 2 images = 16 requests
-    // to 4 dramas × 1 image (poster only) = 4 requests at startup
-    // CachedNetworkImage handles its own lazy loading for the rest
     final preloadList = dramas.take(4).toList();
     for (final drama in preloadList) {
       if (drama.posterImage.isNotEmpty) {
         precacheImage(CachedNetworkImageProvider(drama.posterImage), context);
       }
-      // Removed bannerImage preload — only loaded when user opens hero slider
     }
   }
 

@@ -38,12 +38,15 @@ Future<void> main() async {
 
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // ✅ Only load config before first frame — fastest possible startup
-  // Config needed immediately for version check and ad config
-  await AppConfigService.instance.loadConfig().timeout(
-    const Duration(seconds: 3),
-    onTimeout: () => false,
-  );
+  // ✅ FIX: Run AppConfig and AdConfig in PARALLEL during splash
+  // Both finish together instead of sequentially — faster startup
+  await Future.wait([
+    AppConfigService.instance.loadConfig().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () => false,
+    ),
+    AdConfigService.instance.initialize(),
+  ]);
 
   // ✅ Remove splash — app is ready to show
   FlutterNativeSplash.remove();
@@ -57,15 +60,15 @@ Future<void> main() async {
 /// Runs after first frame — user already sees the app
 /// Nothing here blocks the UI
 Future<void> _initializeInBackground() async {
-  // Initialize ads and FCM permission in parallel
-  await Future.wait([
-    AdConfigService.instance.initialize(),
-    FirebaseMessaging.instance.requestPermission(
+  try {
+    await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-    ),
-  ]).timeout(const Duration(seconds: 10), onTimeout: () => []);
+    ).timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('FCM permission request timed out or failed: $e');
+  }
 
   // FCM listeners — set up after permission granted
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {

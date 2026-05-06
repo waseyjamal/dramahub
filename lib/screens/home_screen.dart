@@ -49,8 +49,9 @@ class _HomeScreenState extends State<HomeScreen>
     Get.find<HomeController>().loadLastWatched();
 
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (!mounted || _timer == null)
-        return; // ✅ 4.3 — added _timer == null check
+      if (!mounted || _timer == null) {
+        _timer?.cancel();
+      }
       final controller = Get.find<HomeController>();
       if (controller.heroSliderDramas.length > 1) {
         if (_pageController.hasClients) {
@@ -419,7 +420,7 @@ class _HomeSkeletonLoader extends StatelessWidget {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: 4,
-                itemBuilder: (_, __) => Container(
+                itemBuilder: (_, i) => Container(
                   width: 200,
                   height: 130,
                   margin: const EdgeInsets.only(right: 12),
@@ -458,7 +459,7 @@ class _HomeSkeletonLoader extends StatelessWidget {
                 mainAxisSpacing: 12,
               ),
               itemCount: 4,
-              itemBuilder: (_, __) => Container(
+              itemBuilder: (_, i) => Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -1006,9 +1007,9 @@ class _LatestEpisodesRow extends StatelessWidget {
                         children: [
                           Positioned.fill(
                             child: CachedNetworkImage(
-                              imageUrl: episode.thumbnailImage.isNotEmpty
-                                  ? episode.thumbnailImage
-                                  : drama.bannerImage,
+                              imageUrl: drama.bannerImage.isNotEmpty
+                                  ? drama.bannerImage
+                                  : drama.posterImage,
                               fit: BoxFit.cover,
                               memCacheWidth: 400,
                               memCacheHeight: 260,

@@ -1,9 +1,12 @@
+import 'package:drama_hub/models/vast_ad_config_model.dart';
+
 class AdConfigModel {
   final bool adsEnabled;
   final AppOpenAdConfig appOpen;
   final InterstitialAdConfig interstitial;
   final RewardedAdConfig rewarded;
   final NativeAdConfig native;
+  final VastAdConfig vast;
 
   AdConfigModel({
     required this.adsEnabled,
@@ -11,6 +14,7 @@ class AdConfigModel {
     required this.interstitial,
     required this.rewarded,
     required this.native,
+    required this.vast,
   });
 
   factory AdConfigModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,7 @@ class AdConfigModel {
       interstitial: InterstitialAdConfig.fromJson(json['interstitial'] ?? {}),
       rewarded: RewardedAdConfig.fromJson(json['rewarded'] ?? {}),
       native: NativeAdConfig.fromJson(json['native'] ?? {}),
+      vast: VastAdConfig.fromJson(json['vast'] ?? {}),
     );
   }
 
@@ -31,6 +36,7 @@ class AdConfigModel {
       interstitial: InterstitialAdConfig.defaults(),
       rewarded: RewardedAdConfig.defaults(),
       native: NativeAdConfig.defaults(),
+      vast: VastAdConfig.defaults(),
     );
   }
 
@@ -40,6 +46,7 @@ class AdConfigModel {
     'interstitial': interstitial.toJson(),
     'rewarded': rewarded.toJson(),
     'native': native.toJson(),
+    'vast': vast.toJson(),
   };
 }
 
@@ -138,11 +145,15 @@ class InterstitialAdConfig {
 
 class RewardedAdConfig {
   final bool enabled;
+  final int cooldownSeconds;
+  final int maxPerSession;
   final String adUnitId;
   final Map<String, bool> screens;
 
   RewardedAdConfig({
     required this.enabled,
+    required this.cooldownSeconds,
+    required this.maxPerSession,
     required this.adUnitId,
     required this.screens,
   });
@@ -151,14 +162,18 @@ class RewardedAdConfig {
     final screensJson = json['screens'] as Map<String, dynamic>? ?? {};
     return RewardedAdConfig(
       enabled: json['enabled'] ?? true,
+      cooldownSeconds: json['cooldown_seconds'] ?? 30,
+      maxPerSession: json['max_per_session'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? RewardedAdConfig.defaults().adUnitId,
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
     );
   }
 
   factory RewardedAdConfig.defaults() => RewardedAdConfig(
-    enabled: false, // ✅ 6.5 — disabled when no config loaded
-    adUnitId: '', // ✅ 6.5 — empty string, not test ID
+    enabled: false,
+    cooldownSeconds: 30,
+    maxPerSession: 5,
+    adUnitId: '',
     screens: {
       'home_screen': false,
       'episodes_screen': false,
@@ -182,6 +197,8 @@ class RewardedAdConfig {
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
+    'cooldown_seconds': cooldownSeconds,
+    'max_per_session': maxPerSession,
     'ad_unit_id': adUnitId,
     'screens': screens,
   };

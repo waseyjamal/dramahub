@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:drama_hub/controllers/episodes_controller.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';

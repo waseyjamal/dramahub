@@ -9,10 +9,12 @@ class AdService extends GetxService {
   static const String _appKey =
       '6a73151827ab64c724ed4211304766dbc57b48d249c6b217';
 
-  bool _isInitialized = false;
   int _interstitialShownCount = 0;
   DateTime? _lastInterstitialTime;
   DateTime _sessionStartTime = DateTime.now();
+  bool _rewardGranted = false;
+  int _rewardedShownCount = 0;
+  DateTime? _lastRewardedTime;
 
   AdConfigService get _cfg => AdConfigService.instance;
 
@@ -28,6 +30,8 @@ class AdService extends GetxService {
   void resetSession() {
     _interstitialShownCount = 0;
     _lastInterstitialTime = null;
+    _rewardedShownCount = 0;
+    _lastRewardedTime = null;
     _sessionStartTime = DateTime.now();
   }
 
@@ -78,7 +82,6 @@ class AdService extends GetxService {
       ],
       onInitializationFinished: (errors) {
         if (errors == null || errors.isEmpty) {
-          _isInitialized = true;
           debugPrint('✅ Appodeal initialized successfully');
         } else {
           for (var error in errors) {
@@ -124,6 +127,22 @@ class AdService extends GetxService {
       return;
     }
 
+    _checkSessionReset();
+    final rewardedConfig = _cfg.config.rewarded;
+    if (_rewardedShownCount >= rewardedConfig.maxPerSession) {
+      debugPrint('ℹ️ Rewarded max per session reached');
+      onNotAvailable?.call();
+      return;
+    }
+    if (_lastRewardedTime != null) {
+      final elapsed = DateTime.now().difference(_lastRewardedTime!);
+      if (elapsed.inSeconds < rewardedConfig.cooldownSeconds) {
+        debugPrint('ℹ️ Rewarded cooldown active');
+        onNotAvailable?.call();
+        return;
+      }
+    }
+
     final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
     if (!canShow) {
       debugPrint('ℹ️ Rewarded not ready');
@@ -131,13 +150,17 @@ class AdService extends GetxService {
       return;
     }
 
+    _rewardGranted = false;
     Appodeal.setRewardedVideoCallbacks(
       onRewardedVideoFinished: (amount, reward) {
         debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
-        onRewarded();
+        _rewardGranted = true;
+        onRewarded(); // ← Fire reward immediately here
       },
       onRewardedVideoClosed: (isFinished) {
-        if (!isFinished) onNotAvailable?.call();
+        if (!_rewardGranted) {
+          onNotAvailable?.call();
+        }
       },
       onRewardedVideoShowFailed: () => onNotAvailable?.call(),
       onRewardedVideoLoaded: (isPrecache) {},
@@ -148,6 +171,8 @@ class AdService extends GetxService {
     );
 
     await Appodeal.show(AppodealAdType.RewardedVideo);
+    _rewardedShownCount++;
+    _lastRewardedTime = DateTime.now();
     debugPrint('✅ Rewarded shown on $screenKey');
   }
 
@@ -162,20 +187,9 @@ class AdService extends GetxService {
   void onInit() {
     super.onInit();
     _sessionStartTime = DateTime.now();
-    Future.doWhile(() async {
-      if (AdConfigService.instance.isInitialized) {
-        if (_cfg.adsEnabled) {
-          await _initAppodeal();
-        }
-        return false;
-      }
-      await Future.delayed(const Duration(milliseconds: 200));
-      return true;
-    });
-  }
-
-  @override
-  void onClose() {
-    super.onClose();
+    if (_cfg.adsEnabled) {
+      _initAppodeal();
+    }
   }
 }
+

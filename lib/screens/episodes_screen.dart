@@ -298,7 +298,7 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
                 mainAxisSpacing: 12,
               ),
               itemCount: 6,
-              itemBuilder: (_, __) => Container(
+              itemBuilder: (_, i) => Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),

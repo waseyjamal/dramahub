@@ -56,7 +56,7 @@ class AppUrls {
   static const String playStore =
       'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub';
   static const String githubDataBase =
-      'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main';
+      'https://dramahub-data.waseyjamal000.workers.dev';
   static const String instagram =
       'https://instagram.com/arafta_hindi'; // ✅ B-10
   static const String website = 'https://drama-hubs.blogspot.com'; // ✅ B-10

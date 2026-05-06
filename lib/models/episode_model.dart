@@ -22,6 +22,12 @@ class EpisodeModel {
   final DateTime releaseDate;
   final bool isPremium;
 
+  /// Player type: 'youtube' or 'custom' — defaults to 'youtube' if missing
+  final String playerType;
+
+  /// HLS stream URL for custom player (e.g. from B2/Cloudflare)
+  final String streamUrl;
+
   EpisodeModel({
     required this.id,
     required this.dramaId,
@@ -35,6 +41,8 @@ class EpisodeModel {
     required this.durationMinutes,
     required this.releaseDate,
     this.isPremium = false,
+    this.playerType = 'youtube',
+    this.streamUrl = '',
   }) : videoUrl = videoId.isNotEmpty
            ? 'https://www.youtube.com/embed/$videoId?autoplay=0&rel=0&modestbranding=1&playsinline=1'
            : '',
@@ -48,6 +56,9 @@ class EpisodeModel {
 
   /// Computed getter: Episode is released if not upcoming
   bool get isReleased => !isUpcoming;
+
+  /// True if this episode uses the custom HLS player
+  bool get isCustomPlayer => playerType == 'custom';
 
   /// Computed getter: Episode is new if released within last 24 hours
   bool get isNew {
@@ -81,6 +92,8 @@ class EpisodeModel {
       durationMinutes: json['durationMinutes'] ?? 0,
       releaseDate: parsedReleaseDate,
       isPremium: json['isPremium'] ?? false,
+      playerType: json['playerType'] ?? 'youtube',
+      streamUrl: json['streamUrl'] ?? '',
     );
   }
 
@@ -99,6 +112,8 @@ class EpisodeModel {
       'durationMinutes': durationMinutes,
       'releaseDate': releaseDate.toIso8601String(),
       'isPremium': isPremium,
+      'playerType': playerType,
+      'streamUrl': streamUrl,
     };
   }
 }

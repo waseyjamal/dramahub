@@ -6,8 +6,8 @@ import 'package:drama_hub/models/episode_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/utils/constants.dart';
+import 'package:drama_hub/config/app_config_service.dart';
 
-// ✅ 5.15 — top-level functions for compute() isolates
 List<DramaModel> _parseDramas(String responseBody) {
   final List<dynamic> jsonList = jsonDecode(responseBody);
   return jsonList.map((e) => DramaModel.fromJson(e)).toList();
@@ -19,23 +19,21 @@ List<EpisodeModel> _parseEpisodes(String responseBody) {
 }
 
 class DataService {
-  // ✅ 8.4 — DramaService merged in — no more 1-line passthrough
-  static const String _dramasUrl =
-      'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/dramas.json';
+  static const String _baseUrl =
+      'https://dramahub-data.waseyjamal000.workers.dev';
   static const String _localDramasFallback = 'assets/data/dramas.json';
-  // ✅ 12 hour TTL — cache invalidated via data_version in app_config
-  static const Duration _episodeCacheTTL = Duration(hours: 12);
+
+  // ✅ 10 min TTL — Cloudflare caches for 5 min, app caches for 10 min
+  // When data_version bumps, cache is cleared immediately anyway
+  static const Duration _episodeCacheTTL = Duration(minutes: 10);
 
   // ── Dramas ──────────────────────────────────────────────────────────────
 
   Future<List<DramaModel>> loadDramas() async {
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final url = '$_dramasUrl?t=$timestamp';
-
       final response = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
+          .get(Uri.parse('$_baseUrl/dramas.json'))
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         return compute(_parseDramas, response.body);
@@ -64,18 +62,18 @@ class DataService {
   // ── Episodes ─────────────────────────────────────────────────────────────
 
   Future<List<EpisodeModel>> loadEpisodes(String dramaId) async {
-    // ✅ 6.2 — Cache check first
+    // ✅ Always check data_version BEFORE serving cache
+    // This fixes the bug where Episodes screen bypassed version check
+    await _checkAndClearCacheIfVersionChanged();
+
     final cached = await _getCachedEpisodes(dramaId);
     if (cached != null) return cached;
 
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final String remoteUrl =
-          'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/episodes/$dramaId.json?t=$timestamp';
-
+      final String remoteUrl = '$_baseUrl/episodes/$dramaId.json';
       final response = await http
           .get(Uri.parse(remoteUrl))
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final episodes = await compute(_parseEpisodes, response.body);
@@ -90,6 +88,32 @@ class DataService {
     } catch (e) {
       debugPrint('Error loading remote episodes for $dramaId: $e');
       return _loadLocalEpisodes(dramaId);
+    }
+  }
+
+  // ✅ Checks data_version from AppConfigService and clears all episode
+  // caches if version changed — called before every episode cache read
+  Future<void> _checkAndClearCacheIfVersionChanged() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final newVersion = AppConfigService.instance.config.dataVersion;
+      final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
+
+      if (newVersion != savedVersion && newVersion > 0) {
+        debugPrint(
+          'DataService: data_version $savedVersion → $newVersion — clearing episode caches',
+        );
+        final keys = prefs.getKeys().toList();
+        for (final key in keys) {
+          if (key.startsWith(StorageKeys.episodesCache) ||
+              key.startsWith(StorageKeys.episodesCacheTime)) {
+            await prefs.remove(key);
+          }
+        }
+        await prefs.setInt(StorageKeys.dataVersion, newVersion);
+      }
+    } catch (e) {
+      debugPrint('DataService: version check error — $e');
     }
   }
 

@@ -67,7 +67,7 @@ class EpisodesController extends GetxController {
       errorMessage.value = '';
 
       final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         hasInternet.value = false;
         isLoading.value = false;
         return;
