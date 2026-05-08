@@ -867,87 +867,84 @@ class _ContinueWatchingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => InkWell(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          final drama = controller.allDramas.firstWhereOrNull(
-            (d) => d.id == controller.lastDramaId.value,
-          );
-          if (drama != null) {
-            controller.goToEpisodes(drama);
-          }
-        },
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(AppRadius.large),
-            boxShadow: AppShadows.cardShadow,
-            border: Border.all(
-              color: AppColors.primaryRed.withValues(alpha: 0.3),
+      () => Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            controller.goToLastWatchedEpisode();
+          },
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              boxShadow: AppShadows.cardShadow,
+              border: Border.all(
+                color: AppColors.primaryRed.withValues(alpha: 0.3),
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: controller.lastDramaBanner.value,
-                  width: 100,
-                  height: 70,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 400,
-                  memCacheHeight: 280,
-                  fadeInDuration: Duration.zero,
-                  errorWidget: (c, u, e) => Container(
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: controller.lastDramaBanner.value,
                     width: 100,
                     height: 70,
-                    color: AppColors.secondaryDark,
-                    child: const Icon(
-                      Icons.play_circle_outline,
-                      color: Colors.white54,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 400,
+                    memCacheHeight: 280,
+                    fadeInDuration: Duration.zero,
+                    errorWidget: (c, u, e) => Container(
+                      width: 100,
+                      height: 70,
+                      color: AppColors.secondaryDark,
+                      child: const Icon(
+                        Icons.play_circle_outline,
+                        color: Colors.white54,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '▶ Continue Watching',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.primaryRed,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '▶ Continue Watching',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.primaryRed,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      controller.lastDramaTitle.value,
-                      style: AppTypography.title.copyWith(fontSize: 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Episode ${controller.lastEpisodeNumber.value}',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.goldAccent,
-                        fontSize: 12,
+                      const SizedBox(height: 4),
+                      Text(
+                        controller.lastDramaTitle.value,
+                        style: AppTypography.title.copyWith(fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        'Episode ${controller.lastEpisodeNumber.value}',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.goldAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.white54),
-              const SizedBox(width: AppSpacing.sm),
-            ],
+                const Icon(Icons.chevron_right, color: Colors.white54),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+            ),
           ),
         ),
       ),

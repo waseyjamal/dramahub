@@ -10,6 +10,6 @@
     "rewardedEnabled": true,
     "maxInterstitialPerSession": 5,
     "interstitialCooldownSeconds": 60,
-    "latestVersion": 1,
+    "latestVersion": 5,
     "forceUpdate": false
 }

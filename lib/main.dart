@@ -17,7 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app.dart';
 
 /// Current app version
-const int currentAppVersion = 4;
+const int currentAppVersion = 5;
 
 /// Main entry point for Drama Hub app
 Future<void> main() async {

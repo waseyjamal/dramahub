@@ -121,7 +121,10 @@ class AdService extends GetxService {
     required VoidCallback onRewarded,
     VoidCallback? onNotAvailable,
   }) async {
-    if (!_cfg.adsEnabled) return;
+    if (!_cfg.adsEnabled) {
+      onNotAvailable?.call();
+      return;
+    }
     if (!_cfg.canShowRewardedOn(screenKey)) {
       onNotAvailable?.call();
       return;

@@ -108,7 +108,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
             // Mark player as initialized BEFORE playing ad
             // so UI switches from thumbnail to ad overlay
             controller.isPlayerInitialized.value = true;
-            await _playVastAd(result.mp4Url);
+            await _playVastAd(result);
             vastService.recordAdShown();
             return;
           }
@@ -179,7 +179,8 @@ body { width:100vw; height:100vh; overflow:hidden; }
     }
   }
 
-  Future<void> _playVastAd(String mp4Url) async {
+  Future<void> _playVastAd(VastAdResult result) async {
+    final mp4Url = result.mp4Url;
     final skipSeconds = AdConfigService.instance.config.vast.skipAfterSeconds;
 
     // Initialize video player
@@ -201,6 +202,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
     _showSkipButton.value = false;
 
     await vc.play();
+    VastAdService.instance.fireImpression(result.impressionUrl);
 
     // Countdown timer — counts down skip seconds
     _vastTimer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -682,26 +684,10 @@ class _ThumbnailPlayer extends StatelessWidget {
                         ),
                       ],
                     )
-                  : Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryRed,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryRed.withValues(alpha: 0.5),
-                            blurRadius: 20,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
-                    ),
+                  : _AnimatedPlayButton(onTap: () {
+                      HapticFeedback.heavyImpact();
+                      onPlayTapped();
+                    }),
             ),
           ),
           Positioned(
@@ -1260,5 +1246,72 @@ class _SimilarDramasSection extends StatelessWidget {
     );
   }
 }
+class _AnimatedPlayButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _AnimatedPlayButton({required this.onTap});
 
+  @override
+  State<_AnimatedPlayButton> createState() => _AnimatedPlayButtonState();
+}
 
+class _AnimatedPlayButtonState extends State<_AnimatedPlayButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _animController.forward(),
+      onTapUp: (_) {
+        _animController.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _animController.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.primaryRed,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryRed.withValues(alpha: 0.5),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: Center(
+            child: AnimatedIcon(
+              icon: AnimatedIcons.play_pause,
+              progress: _animController,
+              color: Colors.white,
+              size: 36,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

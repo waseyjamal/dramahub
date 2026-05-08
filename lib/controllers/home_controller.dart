@@ -296,6 +296,20 @@ class HomeController extends GetxController {
     )?.then((_) => loadLastWatched());
   }
 
+  void goToLastWatchedEpisode() {
+    if (lastDramaId.value.isEmpty || lastEpisodeNumber.value == 0) return;
+
+    final drama = allDramas.firstWhereOrNull((d) => d.id == lastDramaId.value);
+    if (drama == null) return;
+
+    // 🚀 INSTANT NAVIGATION (Sliding Transition)
+    // Matches the "Home to Episodes" feel.
+    Get.toNamed(
+      AppRoutes.episodes,
+      arguments: {'drama': drama, 'autoPlayEpisode': lastEpisodeNumber.value},
+    )?.then((_) => loadLastWatched());
+  }
+
   void filterDramas(String query) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {

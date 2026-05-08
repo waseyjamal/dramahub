@@ -12,6 +12,7 @@ import 'package:drama_hub/controllers/history_controller.dart';
 import 'package:drama_hub/utils/constants.dart'; // ✅ StorageKeys
 import 'package:drama_hub/services/analytics_writer_service.dart';
 import 'dart:async';
+import 'package:drama_hub/controllers/video_controller.dart';
 
 class EpisodesController extends GetxController {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
@@ -48,8 +49,20 @@ class EpisodesController extends GetxController {
       }
       selectedDrama = drama;
       skipInterstitialOnOpen = args['skipAd'] == true;
-      loadEpisodes();
-      if (!skipInterstitialOnOpen) {
+      final autoPlayEp = args['autoPlayEpisode'] as int?;
+
+      loadEpisodes().then((_) {
+        if (autoPlayEp != null) {
+          final episode = allEpisodes.firstWhereOrNull(
+            (e) => e.episodeNumber == autoPlayEp,
+          );
+          if (episode != null) {
+            openEpisode(episode);
+          }
+        }
+      });
+
+      if (!skipInterstitialOnOpen && autoPlayEp == null) {
         Future.delayed(const Duration(seconds: 1), () {
           _adService.showInterstitialForScreen('episodes_screen');
         });
@@ -120,9 +133,12 @@ class EpisodesController extends GetxController {
     await saveLastWatched(episode);
     await _adService.showRewardedForScreen(
       'episodes_screen',
-      onRewarded: () {},
-      onNotAvailable: () {},
+      onRewarded: () => _navigateToVideo(episode),
+      onNotAvailable: () => _navigateToVideo(episode),
     );
+  }
+
+  void _navigateToVideo(EpisodeModel episode) {
     _analytics.logEvent(
       name: 'episode_watched',
       parameters: {
@@ -141,6 +157,7 @@ class EpisodesController extends GetxController {
       episodeNumber: episode.episodeNumber,
     );
     // ✅ Pass dramaTitle and dramaBanner for video screen display
+    Get.delete<VideoController>(force: true);
     Get.toNamed(
       AppRoutes.video,
       arguments: {

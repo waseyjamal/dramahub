@@ -9,15 +9,17 @@ class VastAdResult {
   final bool success;
   final String mp4Url;
   final String network;
+  final String impressionUrl;
 
   VastAdResult({
     required this.success,
     required this.mp4Url,
     required this.network,
+    this.impressionUrl = '',
   });
 
   factory VastAdResult.empty() =>
-      VastAdResult(success: false, mp4Url: '', network: '');
+      VastAdResult(success: false, mp4Url: '', network: '', impressionUrl: '');
 }
 
 class VastAdService extends GetxService {
@@ -89,35 +91,81 @@ class VastAdService extends GetxService {
 
   /// Fetches VAST XML and extracts MP4 url
   Future<VastAdResult> _fetchVastXml(VastWaterfallEntry entry) async {
-    final response = await http
-        .get(Uri.parse(entry.url))
-        .timeout(const Duration(seconds: 5));
+    return await _fetchWithRedirect(entry.url, entry.network, depth: 0);
+  }
+
+  Future<VastAdResult> _fetchWithRedirect(String url, String network,
+      {int depth = 0}) async {
+    if (depth > 3) {
+      debugPrint('VastAdService: max wrapper depth reached');
+      return VastAdResult.empty();
+    }
+
+    final response =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
 
     if (response.statusCode != 200) {
+      debugPrint('VastAdService: HTTP ${response.statusCode} from $url');
       return VastAdResult.empty();
     }
 
     final xml = response.body;
 
-    // Extract MP4 url from VAST XML
-    final mp4Match = RegExp(
-      r'<MediaFile[^>]*type="video/mp4"[^>]*>\s*<!\[CDATA\[\s*(https?://[^\]]+?\.mp4)\s*\]\]>\s*</MediaFile>',
+    // Check for VAST Wrapper tag (Redirect)
+    final wrapperMatch = RegExp(
+      r'<VASTAdTagURI[^>]*>\s*<!\[CDATA\[\s*(https?://\S+?)\s*\]\]>\s*</VASTAdTagURI>',
       caseSensitive: false,
     ).firstMatch(xml);
 
-    if (mp4Match == null) {
-      debugPrint('VastAdService: no MP4 found in VAST from ${entry.network}');
+    if (wrapperMatch != null) {
+      final wrapperUrl = wrapperMatch.group(1)?.trim() ?? '';
+      if (wrapperUrl.isNotEmpty) {
+        debugPrint('VastAdService: following wrapper → $wrapperUrl');
+        return await _fetchWithRedirect(wrapperUrl, network, depth: depth + 1);
+      }
+    }
+
+    // Extract MP4 url from VAST XML
+    final cdataMatch = RegExp(
+      r'<MediaFile[^>]*>\s*<!\[CDATA\[\s*(https?://\S+?)\s*\]\]>\s*</MediaFile>',
+      caseSensitive: false,
+    ).firstMatch(xml);
+
+    final plainMatch = RegExp(
+      r'<MediaFile[^>]*>\s*(https?://\S+?)\s*</MediaFile>',
+      caseSensitive: false,
+    ).firstMatch(xml);
+
+    final mp4Url =
+        cdataMatch?.group(1)?.trim() ?? plainMatch?.group(1)?.trim() ?? '';
+
+    if (mp4Url.isEmpty) {
+      debugPrint('VastAdService: no MP4 found in VAST from $network');
       return VastAdResult.empty();
     }
 
-    final mp4Url = mp4Match.group(1)?.trim() ?? '';
-    if (mp4Url.isEmpty) return VastAdResult.empty();
+    // Extract Impression URL
+    final impressionMatch = RegExp(
+      r'<Impression[^>]*>\s*<!\[CDATA\[\s*(https?://\S+?)\s*\]\]>\s*</Impression>',
+      caseSensitive: false,
+    ).firstMatch(xml);
+    final impressionUrl = impressionMatch?.group(1)?.trim() ?? '';
 
     return VastAdResult(
       success: true,
       mp4Url: mp4Url,
-      network: entry.network,
+      network: network,
+      impressionUrl: impressionUrl,
     );
+  }
+
+  /// Silently fires a GET request to the impression URL
+  Future<void> fireImpression(String impressionUrl) async {
+    if (impressionUrl.isEmpty) return;
+    http.get(Uri.parse(impressionUrl)).catchError((_) {
+      return http.Response('', 404);
+    });
+    debugPrint('VastAdService: impression fired for $impressionUrl');
   }
 
   /// Call this after ad is shown successfully
