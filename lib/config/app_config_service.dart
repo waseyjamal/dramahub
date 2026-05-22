@@ -31,7 +31,7 @@ class AppConfigService {
       _config = AppConfigModel.fromJson(configMap);
       return true;
     } catch (e) {
-      debugPrint('Config load failed: $e');
+      if (kDebugMode) { debugPrint('Config load failed: $e'); }
       _config = AppConfigModel.defaultConfig();
       return false;
     }
@@ -48,13 +48,17 @@ class AppConfigService {
       final Map<String, dynamic> configMap = await remoteService
           .fetchAppConfig();
       _config = AppConfigModel.fromJson(configMap);
-      debugPrint(
-        'AppConfigService: reloaded — heroIds: ${_config.heroSliderDramaIds}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AppConfigService: reloaded — heroIds: ${_config.heroSliderDramaIds}',
+        );
+      }
     } catch (e) {
-      debugPrint(
-        'AppConfigService: reload failed, keeping current config — $e',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AppConfigService: reload failed, keeping current config — $e',
+        );
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
-/// App-wide constants for Drama Hub
+import 'package:drama_hub/config/app_config_service.dart';
+
 class Constants {
   // App info
   static const String appName = 'Drama Hub';
@@ -49,15 +50,25 @@ class AppConstants {
   static const String premiumDramaId = 'arafta';
 }
 
-/// ✅ 8.10 — All hardcoded URLs in one place
-// AFTER:
+/// ✅ All social/external URLs controlled from admin panel via app_config.json
+/// Change any URL from admin — no new APK needed.
 class AppUrls {
-  static const String telegram = 'https://t.me/araftahindisub';
+  // ── Dynamic (admin-controlled) ───────────────────────────────────────────
+  static String get telegram =>
+      AppConfigService.instance.config.telegramUrl;
+  static String get instagram =>
+      AppConfigService.instance.config.instagramUrl;
+  static String get website =>
+      AppConfigService.instance.config.websiteUrl;
+
+  // ── Static (rarely changes, not worth admin overhead) ────────────────────
   static const String playStore =
       'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub';
   static const String githubDataBase =
       'https://dramahub-data.waseyjamal000.workers.dev';
-  static const String instagram =
-      'https://instagram.com/arafta_hindi'; // ✅ B-10
-  static const String website = 'https://drama-hubs.blogspot.com'; // ✅ B-10
+
+  static bool isSafeUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && ['https', 'http', 'tg'].contains(uri.scheme);
+  }
 }

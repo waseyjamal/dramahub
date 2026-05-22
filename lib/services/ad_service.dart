@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:drama_hub/services/cas_service.dart';
 import 'package:stack_appodeal_flutter/stack_appodeal_flutter.dart';
 import 'ad_config_service.dart';
 
@@ -23,7 +24,7 @@ class AdService extends GetxService {
     if (diff.inHours >= 4) {
       _interstitialShownCount = 0;
       _sessionStartTime = DateTime.now();
-      debugPrint('🔄 Ad session reset');
+      if (kDebugMode) { debugPrint('🔄 Ad session reset'); }
     }
   }
 
@@ -41,51 +42,45 @@ class AdService extends GetxService {
     Appodeal.setLogLevel(
       kReleaseMode ? Appodeal.LogLevelNone : Appodeal.LogLevelVerbose,
     );
-    Appodeal.setAutoCache(AppodealAdType.Interstitial, true);
+    // Appodeal.setAutoCache(AppodealAdType.Interstitial, true); // DISABLED — 0.5% fill rate
     Appodeal.setAutoCache(AppodealAdType.RewardedVideo, true);
 
-    Appodeal.setInterstitialCallbacks(
-      onInterstitialLoaded: (isPrecache) =>
-          debugPrint('✅ Interstitial loaded'),
-      onInterstitialFailedToLoad: () =>
-          debugPrint('❌ Interstitial failed to load'),
-      onInterstitialShown: () => debugPrint('▶️ Interstitial shown'),
-      onInterstitialClosed: () => debugPrint('✅ Interstitial closed'),
-      onInterstitialShowFailed: () =>
-          debugPrint('❌ Interstitial failed to show'),
-      onInterstitialClicked: () => debugPrint('👆 Interstitial clicked'),
-      onInterstitialExpired: () => debugPrint('⏰ Interstitial expired'),
-    );
+    // DISABLED — Appodeal Interstitial commented out (0.5% fill rate)
+    // Appodeal.setInterstitialCallbacks(
+    //   onInterstitialLoaded: (isPrecache) { if (kDebugMode) { debugPrint('✅ Interstitial loaded'); } },
+    //   onInterstitialFailedToLoad: () { if (kDebugMode) { debugPrint('❌ Interstitial failed to load'); } },
+    //   onInterstitialShown: () { if (kDebugMode) { debugPrint('▶️ Interstitial shown'); } },
+    //   onInterstitialClosed: () { if (kDebugMode) { debugPrint('✅ Interstitial closed'); } },
+    //   onInterstitialShowFailed: () { if (kDebugMode) { debugPrint('❌ Interstitial failed to show'); } },
+    //   onInterstitialClicked: () { if (kDebugMode) { debugPrint('👆 Interstitial clicked'); } },
+    //   onInterstitialExpired: () { if (kDebugMode) { debugPrint('⏰ Interstitial expired'); } },
+    // );
 
     Appodeal.setRewardedVideoCallbacks(
-      onRewardedVideoLoaded: (isPrecache) =>
-          debugPrint('✅ Rewarded loaded'),
-      onRewardedVideoFailedToLoad: () =>
-          debugPrint('❌ Rewarded failed to load'),
-      onRewardedVideoShown: () => debugPrint('▶️ Rewarded shown'),
-      onRewardedVideoClosed: (isFinished) =>
-          debugPrint('✅ Rewarded closed finished:$isFinished'),
-      onRewardedVideoShowFailed: () =>
-          debugPrint('❌ Rewarded failed to show'),
-      onRewardedVideoClicked: () => debugPrint('👆 Rewarded clicked'),
-      onRewardedVideoExpired: () => debugPrint('⏰ Rewarded expired'),
+      onRewardedVideoLoaded: (isPrecache) { if (kDebugMode) { debugPrint('✅ Rewarded loaded'); } },
+      onRewardedVideoFailedToLoad: () { if (kDebugMode) { debugPrint('❌ Rewarded failed to load'); } },
+      onRewardedVideoShown: () { if (kDebugMode) { debugPrint('▶️ Rewarded shown'); } },
+      onRewardedVideoClosed: (isFinished) { if (kDebugMode) { debugPrint('✅ Rewarded closed finished:$isFinished'); } },
+      onRewardedVideoShowFailed: () { if (kDebugMode) { debugPrint('❌ Rewarded failed to show'); } },
+      onRewardedVideoClicked: () { if (kDebugMode) { debugPrint('👆 Rewarded clicked'); } },
+      onRewardedVideoExpired: () { if (kDebugMode) { debugPrint('⏰ Rewarded expired'); } },
       onRewardedVideoFinished: (amount, reward) {
-        debugPrint('🎁 Reward earned: $amount $reward');
+        if (kDebugMode) { debugPrint('🎁 Reward earned: $amount $reward'); }
       },
     );
 
     await Appodeal.initialize(
       appKey: _appKey,
       adTypes: [
-        AppodealAdType.Interstitial,
+        // AppodealAdType.Interstitial, // DISABLED — 0.5% fill rate
         AppodealAdType.RewardedVideo,
       ],
       onInitializationFinished: (errors) {
         if (errors == null || errors.isEmpty) {
-          debugPrint('✅ Appodeal initialized successfully');
+          if (kDebugMode) { debugPrint('✅ Appodeal initialized successfully'); }
         } else {
           for (var error in errors) {
-            debugPrint('❌ Appodeal init error: ${error.description}');
+            if (kDebugMode) { debugPrint('❌ Appodeal init error: ${error.description}'); }
           }
         }
       },
@@ -104,16 +99,78 @@ class AdService extends GetxService {
       if (elapsed.inSeconds < config.cooldownSeconds) return;
     }
 
-    final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-    if (!canShow) {
-      debugPrint('ℹ️ Interstitial not ready');
-      return;
+    // Priority 1
+    if (config.priority1Enabled) {
+      if (config.priority1 == 'appodeal' &&
+          _cfg.config.adNetworks.appodealEnabled) {
+        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
+        if (canShow) {
+          await Appodeal.show(AppodealAdType.Interstitial);
+          _interstitialShownCount++;
+          _lastInterstitialTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Interstitial shown via Appodeal on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ Appodeal Interstitial not ready, trying fallback');
+        }
+      } else if (config.priority1 == 'cas' &&
+          _cfg.config.adNetworks.casEnabled) {
+        final shown = await CasService.instance.showInterstitialFallback();
+        if (shown) {
+          _interstitialShownCount++;
+          _lastInterstitialTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Interstitial shown via CAS on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ CAS Interstitial not ready, trying fallback');
+        }
+      }
     }
 
-    await Appodeal.show(AppodealAdType.Interstitial);
-    _interstitialShownCount++;
-    _lastInterstitialTime = DateTime.now();
-    debugPrint('✅ Interstitial shown on $screenKey');
+    // Priority 2
+    if (config.priority2Enabled) {
+      if (config.priority2 == 'appodeal' &&
+          _cfg.config.adNetworks.appodealEnabled) {
+        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
+        if (canShow) {
+          await Appodeal.show(AppodealAdType.Interstitial);
+          _interstitialShownCount++;
+          _lastInterstitialTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint(
+                '✅ Interstitial shown via Appodeal fallback on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ Appodeal Interstitial fallback not ready');
+        }
+      } else if (config.priority2 == 'cas' &&
+          _cfg.config.adNetworks.casEnabled) {
+        final shown = await CasService.instance.showInterstitialFallback();
+        if (shown) {
+          _interstitialShownCount++;
+          _lastInterstitialTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Interstitial shown via CAS fallback on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ CAS Interstitial fallback not ready');
+        }
+      }
+    }
+
+    if (kDebugMode) {
+      debugPrint('ℹ️ No Interstitial available on $screenKey');
+    }
   }
 
   Future<void> showRewardedForScreen(
@@ -133,57 +190,148 @@ class AdService extends GetxService {
     _checkSessionReset();
     final rewardedConfig = _cfg.config.rewarded;
     if (_rewardedShownCount >= rewardedConfig.maxPerSession) {
-      debugPrint('ℹ️ Rewarded max per session reached');
+      if (kDebugMode) {
+        debugPrint('ℹ️ Rewarded max per session reached');
+      }
       onNotAvailable?.call();
       return;
     }
     if (_lastRewardedTime != null) {
       final elapsed = DateTime.now().difference(_lastRewardedTime!);
       if (elapsed.inSeconds < rewardedConfig.cooldownSeconds) {
-        debugPrint('ℹ️ Rewarded cooldown active');
+        if (kDebugMode) {
+          debugPrint('ℹ️ Rewarded cooldown active');
+        }
         onNotAvailable?.call();
         return;
       }
     }
 
-    final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-    if (!canShow) {
-      debugPrint('ℹ️ Rewarded not ready');
-      onNotAvailable?.call();
-      return;
+    // Priority 1
+    if (rewardedConfig.priority1Enabled) {
+      if (rewardedConfig.priority1 == 'appodeal' &&
+          _cfg.config.adNetworks.appodealEnabled) {
+        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
+        if (canShow) {
+          _rewardGranted = false;
+          Appodeal.setRewardedVideoCallbacks(
+            onRewardedVideoFinished: (amount, reward) {
+              if (kDebugMode) {
+                debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
+              }
+              _rewardGranted = true;
+              onRewarded();
+            },
+            onRewardedVideoClosed: (isFinished) {
+              if (!_rewardGranted) onNotAvailable?.call();
+            },
+            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
+            onRewardedVideoLoaded: (isPrecache) {},
+            onRewardedVideoFailedToLoad: () {},
+            onRewardedVideoShown: () {},
+            onRewardedVideoClicked: () {},
+            onRewardedVideoExpired: () {},
+          );
+          await Appodeal.show(AppodealAdType.RewardedVideo);
+          _rewardedShownCount++;
+          _lastRewardedTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Rewarded shown via Appodeal on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ Appodeal Rewarded not ready, trying fallback');
+        }
+      } else if (rewardedConfig.priority1 == 'cas' &&
+          _cfg.config.adNetworks.casEnabled) {
+        final shown = await CasService.instance.showRewardedFallback(
+          onRewarded: onRewarded,
+          onNotAvailable: onNotAvailable,
+        );
+        if (shown) {
+          _rewardedShownCount++;
+          _lastRewardedTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Rewarded shown via CAS on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ CAS Rewarded not ready, trying fallback');
+        }
+      }
     }
 
-    _rewardGranted = false;
-    Appodeal.setRewardedVideoCallbacks(
-      onRewardedVideoFinished: (amount, reward) {
-        debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
-        _rewardGranted = true;
-        onRewarded(); // ← Fire reward immediately here
-      },
-      onRewardedVideoClosed: (isFinished) {
-        if (!_rewardGranted) {
-          onNotAvailable?.call();
+    // Priority 2
+    if (rewardedConfig.priority2Enabled) {
+      if (rewardedConfig.priority2 == 'appodeal' &&
+          _cfg.config.adNetworks.appodealEnabled) {
+        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
+        if (canShow) {
+          _rewardGranted = false;
+          Appodeal.setRewardedVideoCallbacks(
+            onRewardedVideoFinished: (amount, reward) {
+              if (kDebugMode) {
+                debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
+              }
+              _rewardGranted = true;
+              onRewarded();
+            },
+            onRewardedVideoClosed: (isFinished) {
+              if (!_rewardGranted) onNotAvailable?.call();
+            },
+            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
+            onRewardedVideoLoaded: (isPrecache) {},
+            onRewardedVideoFailedToLoad: () {},
+            onRewardedVideoShown: () {},
+            onRewardedVideoClicked: () {},
+            onRewardedVideoExpired: () {},
+          );
+          await Appodeal.show(AppodealAdType.RewardedVideo);
+          _rewardedShownCount++;
+          _lastRewardedTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint(
+                '✅ Rewarded shown via Appodeal fallback on $screenKey');
+          }
+          return;
         }
-      },
-      onRewardedVideoShowFailed: () => onNotAvailable?.call(),
-      onRewardedVideoLoaded: (isPrecache) {},
-      onRewardedVideoFailedToLoad: () {},
-      onRewardedVideoShown: () {},
-      onRewardedVideoClicked: () {},
-      onRewardedVideoExpired: () {},
-    );
+        if (kDebugMode) {
+          debugPrint('ℹ️ Appodeal Rewarded fallback not ready');
+        }
+      } else if (rewardedConfig.priority2 == 'cas' &&
+          _cfg.config.adNetworks.casEnabled) {
+        final shown = await CasService.instance.showRewardedFallback(
+          onRewarded: onRewarded,
+          onNotAvailable: onNotAvailable,
+        );
+        if (shown) {
+          _rewardedShownCount++;
+          _lastRewardedTime = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('✅ Rewarded shown via CAS fallback on $screenKey');
+          }
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('ℹ️ CAS Rewarded fallback not ready');
+        }
+      }
+    }
 
-    await Appodeal.show(AppodealAdType.RewardedVideo);
-    _rewardedShownCount++;
-    _lastRewardedTime = DateTime.now();
-    debugPrint('✅ Rewarded shown on $screenKey');
+    if (kDebugMode) {
+      debugPrint('ℹ️ No Rewarded available on $screenKey');
+    }
+    onNotAvailable?.call();
   }
 
-  // App Open not supported in Appodeal 3.12.0
-  // Will be added when supported
   Future<void> showAppOpen() async {
-    debugPrint('ℹ️ App Open not supported in current Appodeal version');
-    return;
+    if (!_cfg.adsEnabled) return;
+    if (!_cfg.appOpenEnabled) return;
+    if (_cfg.config.adNetworks.casEnabled) {
+      await CasService.instance.showAppOpen();
+    }
   }
 
   @override

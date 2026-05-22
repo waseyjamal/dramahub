@@ -19,8 +19,12 @@ List<EpisodeModel> _parseEpisodes(String responseBody) {
 }
 
 class DataService {
-  static const String _baseUrl =
-      'https://dramahub-data.waseyjamal000.workers.dev';
+  // ✅ CDN base is read from AppConfigService at runtime.
+  // Admin can switch cdn_base in app_config.json to redirect all fetches
+  // to GitHub raw or another CDN — no new APK needed.
+  // Falls back to Cloudflare Worker if cdn_base is not set in config.
+  String get _baseUrl => AppConfigService.instance.config.cdnBase;
+
   static const String _localDramasFallback = 'assets/data/dramas.json';
 
   // ✅ 10 min TTL — Cloudflare caches for 5 min, app caches for 10 min
@@ -38,11 +42,11 @@ class DataService {
       if (response.statusCode == 200) {
         return compute(_parseDramas, response.body);
       } else {
-        debugPrint('Failed to load remote dramas: ${response.statusCode}');
+        if (kDebugMode) { debugPrint('Failed to load remote dramas: ${response.statusCode}'); }
         return _loadLocalDramas();
       }
     } catch (e) {
-      debugPrint('Error fetching dramas: $e');
+      if (kDebugMode) { debugPrint('Error fetching dramas: $e'); }
       return _loadLocalDramas();
     }
   }
@@ -54,7 +58,7 @@ class DataService {
       );
       return compute(_parseDramas, jsonString);
     } catch (e) {
-      debugPrint('Error loading local dramas: $e');
+      if (kDebugMode) { debugPrint('Error loading local dramas: $e'); }
       return [];
     }
   }
@@ -80,13 +84,13 @@ class DataService {
         await _cacheEpisodes(dramaId, response.body);
         return episodes;
       } else {
-        debugPrint(
+        if (kDebugMode) { debugPrint(
           'Failed to load remote episodes for $dramaId: ${response.statusCode}',
-        );
+        ); }
         return _loadLocalEpisodes(dramaId);
       }
     } catch (e) {
-      debugPrint('Error loading remote episodes for $dramaId: $e');
+      if (kDebugMode) { debugPrint('Error loading remote episodes for $dramaId: $e'); }
       return _loadLocalEpisodes(dramaId);
     }
   }
@@ -100,9 +104,9 @@ class DataService {
       final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
 
       if (newVersion != savedVersion && newVersion > 0) {
-        debugPrint(
+        if (kDebugMode) { debugPrint(
           'DataService: data_version $savedVersion → $newVersion — clearing episode caches',
-        );
+        ); }
         final keys = prefs.getKeys().toList();
         for (final key in keys) {
           if (key.startsWith(StorageKeys.episodesCache) ||
@@ -113,7 +117,7 @@ class DataService {
         await prefs.setInt(StorageKeys.dataVersion, newVersion);
       }
     } catch (e) {
-      debugPrint('DataService: version check error — $e');
+      if (kDebugMode) { debugPrint('DataService: version check error — $e'); }
     }
   }
 
@@ -145,7 +149,7 @@ class DataService {
         DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      debugPrint('Episode cache write error: $e');
+      if (kDebugMode) { debugPrint('Episode cache write error: $e'); }
     }
   }
 
@@ -156,7 +160,7 @@ class DataService {
       );
       return compute(_parseEpisodes, jsonString);
     } catch (e) {
-      debugPrint('Error loading local episodes for $dramaId: $e');
+      if (kDebugMode) { debugPrint('Error loading local episodes for $dramaId: $e'); }
       try {
         final String jsonString = await rootBundle.loadString(
           'assets/data/episodes.json',
@@ -164,7 +168,7 @@ class DataService {
         final allEpisodes = await compute(_parseEpisodes, jsonString);
         return allEpisodes.where((ep) => ep.dramaId == dramaId).toList();
       } catch (e2) {
-        debugPrint('Error loading legacy local episodes: $e2');
+        if (kDebugMode) { debugPrint('Error loading legacy local episodes: $e2'); }
         return [];
       }
     }

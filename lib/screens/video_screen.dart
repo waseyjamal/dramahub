@@ -90,13 +90,6 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     try {
       controller.hasVideoError.value = false;
 
-      FirebaseAnalytics.instance.logEvent(
-        name: 'video_played',
-        parameters: {
-          'episode_title': controller.episode.title,
-          'episode_number': controller.episode.episodeNumber,
-        },
-      );
 
       if (controller.isCustomPlayer.value) {
         if (controller.streamUrl.value.isEmpty) return;
@@ -275,6 +268,11 @@ body { width:100vw; height:100vh; overflow:hidden; }
       BetterPlayerDataSourceType.network,
       controller.streamUrl.value,
       videoFormat: BetterPlayerVideoFormat.hls,
+      cacheConfiguration: const BetterPlayerCacheConfiguration(
+        useCache: true,
+        maxCacheSize: 200 * 1024 * 1024,
+        maxCacheFileSize: 50 * 1024 * 1024,
+      ),
       bufferingConfiguration: const BetterPlayerBufferingConfiguration(
         minBufferMs: 10000,
         maxBufferMs: 30000,
@@ -305,14 +303,25 @@ body { width:100vw; height:100vh; overflow:hidden; }
         iconsColor: Colors.white,
       ),
       eventListener: (event) {
-        if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
-          controller.isVideoLoading.value = false;
-          _hlsLoading.value = false;
-        }
-        if (event.betterPlayerEventType == BetterPlayerEventType.exception) {
-          controller.hasVideoError.value = true;
-          _hlsLoading.value = false;
-        }
+        if (!mounted) return;
+        try {
+          if (event.betterPlayerEventType ==
+              BetterPlayerEventType.initialized) {
+            controller.isVideoLoading.value = false;
+            _hlsLoading.value = false;
+            FirebaseAnalytics.instance.logEvent(
+              name: 'video_played',
+              parameters: {
+                'episode_title': controller.episode.title,
+                'episode_number': controller.episode.episodeNumber,
+              },
+            );
+          }
+          if (event.betterPlayerEventType == BetterPlayerEventType.exception) {
+            controller.hasVideoError.value = true;
+            _hlsLoading.value = false;
+          }
+        } catch (_) {}
       },
     );
 
@@ -862,9 +871,57 @@ class _VastAdOverlay extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────
 // EPISODE LIST SECTION
 // ─────────────────────────────────────────────────────────────────
-class _EpisodeListSection extends StatelessWidget {
+class _EpisodeListSection extends StatefulWidget {
   final VideoController controller;
   const _EpisodeListSection({required this.controller});
+
+  @override
+  State<_EpisodeListSection> createState() => _EpisodeListSectionState();
+}
+
+class _EpisodeListSectionState extends State<_EpisodeListSection> {
+  final ScrollController _scrollController = ScrollController();
+
+  static const double _itemWidth = 64.0;
+  static const double _separatorWidth = AppSpacing.sm;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCurrentEpisode();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToCurrentEpisode() {
+    if (!_scrollController.hasClients) return;
+    final episodes = widget.controller.allEpisodes;
+    final currentEpNumber = widget.controller.episode.episodeNumber;
+    final currentIndex = episodes.indexWhere(
+      (e) => e.episodeNumber == currentEpNumber,
+    );
+    if (currentIndex == -1) return;
+
+    final itemStep = _itemWidth + _separatorWidth;
+    final itemCenter = (currentIndex * itemStep) + (_itemWidth / 2);
+    final viewportWidth = _scrollController.position.viewportDimension;
+    final targetOffset = itemCenter - (viewportWidth / 2);
+    final maxOffset = _scrollController.position.maxScrollExtent;
+
+    final clampedOffset = targetOffset.clamp(0.0, maxOffset);
+
+    _scrollController.animateTo(
+      clampedOffset,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -876,21 +933,22 @@ class _EpisodeListSection extends StatelessWidget {
         SizedBox(
           height: 80,
           child: ListView.separated(
+            controller: _scrollController,
             scrollDirection: Axis.horizontal,
-            itemCount: controller.allEpisodes.length,
+            itemCount: widget.controller.allEpisodes.length,
             separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
             itemBuilder: (context, index) {
-              final ep = controller.allEpisodes[index];
+              final ep = widget.controller.allEpisodes[index];
               final isCurrent =
-                  ep.episodeNumber == controller.episode.episodeNumber;
+                  ep.episodeNumber == widget.controller.episode.episodeNumber;
               return GestureDetector(
                 onTap: isCurrent
                     ? null
                     : () {
                         final adService = Get.find<AdService>();
                         final targetEp = ep;
-                        final dramaTitle = controller.dramaTitle;
-                        final dramaBanner = controller.dramaBanner;
+                        final dramaTitle = widget.controller.dramaTitle;
+                        final dramaBanner = widget.controller.dramaBanner;
 
                         void navigate() {
                           Get.delete<VideoController>(force: true);
@@ -911,7 +969,7 @@ class _EpisodeListSection extends StatelessWidget {
                         );
                       },
                 child: Container(
-                  width: 64,
+                  width: _itemWidth,
                   decoration: BoxDecoration(
                     color: isCurrent
                         ? AppColors.primaryRed
@@ -973,7 +1031,8 @@ class _WatchProgressSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final drama = controller.drama!;
+    final drama = controller.drama;
+    if (drama == null) return const SizedBox.shrink();
     final current = controller.episode.episodeNumber;
     final total = drama.totalEpisodes > 0
         ? drama.totalEpisodes
@@ -1037,7 +1096,8 @@ class _DramaInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final drama = controller.drama!;
+    final drama = controller.drama;
+    if (drama == null) return const SizedBox.shrink();
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,

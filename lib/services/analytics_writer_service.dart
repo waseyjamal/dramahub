@@ -56,7 +56,7 @@ class AnalyticsWriterService {
         ),
       ]);
     } catch (e) {
-      debugPrint('AnalyticsWriter error: $e');
+      if (kDebugMode) { debugPrint('AnalyticsWriter error: $e'); }
     }
   }
 
@@ -67,13 +67,18 @@ class AnalyticsWriterService {
         await FirebaseAuth.instance.signInAnonymously();
         user = FirebaseAuth.instance.currentUser;
       }
-      final token = await user!.getIdToken();
+      if (user == null) {
+        if (kDebugMode) { debugPrint('AnalyticsWriter: no auth user — skipping write'); }
+        throw Exception('No authenticated user');
+      }
+      final token = await user.getIdToken();
       return {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
     } catch (e) {
-      return {'Content-Type': 'application/json'};
+      if (kDebugMode) { debugPrint('AnalyticsWriter: auth failed — $e'); }
+      rethrow;
     }
   }
 
@@ -95,9 +100,11 @@ class AnalyticsWriterService {
 
     // ✅ B-1 fix — log failures instead of silently swallowing them
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      debugPrint(
-        'AnalyticsWriter _writeDocument failed: ${response.statusCode} ${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AnalyticsWriter _writeDocument failed: ${response.statusCode} ${response.body}',
+        );
+      }
     }
   }
 
@@ -142,9 +149,11 @@ class AnalyticsWriterService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      debugPrint(
-        'AnalyticsWriter _incrementDocument failed: ${response.statusCode} ${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AnalyticsWriter _incrementDocument failed: ${response.statusCode} ${response.body}',
+        );
+      }
     }
   }
 

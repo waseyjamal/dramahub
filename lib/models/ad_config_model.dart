@@ -7,6 +7,7 @@ class AdConfigModel {
   final RewardedAdConfig rewarded;
   final NativeAdConfig native;
   final VastAdConfig vast;
+  final AdNetworksConfig adNetworks;
 
   AdConfigModel({
     required this.adsEnabled,
@@ -15,6 +16,7 @@ class AdConfigModel {
     required this.rewarded,
     required this.native,
     required this.vast,
+    required this.adNetworks,
   });
 
   factory AdConfigModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,7 @@ class AdConfigModel {
       rewarded: RewardedAdConfig.fromJson(json['rewarded'] ?? {}),
       native: NativeAdConfig.fromJson(json['native'] ?? {}),
       vast: VastAdConfig.fromJson(json['vast'] ?? {}),
+      adNetworks: AdNetworksConfig.fromJson(json['ad_networks'] ?? {}),
     );
   }
 
@@ -37,6 +40,7 @@ class AdConfigModel {
       rewarded: RewardedAdConfig.defaults(),
       native: NativeAdConfig.defaults(),
       vast: VastAdConfig.defaults(),
+      adNetworks: AdNetworksConfig.defaults(),
     );
   }
 
@@ -47,18 +51,33 @@ class AdConfigModel {
     'rewarded': rewarded.toJson(),
     'native': native.toJson(),
     'vast': vast.toJson(),
+    'ad_networks': adNetworks.toJson(),
   };
+}
+
+class AdNetworksConfig {
+  final bool appodealEnabled;
+  final bool casEnabled;
+  AdNetworksConfig({required this.appodealEnabled, required this.casEnabled});
+  factory AdNetworksConfig.fromJson(Map<String, dynamic> json) => AdNetworksConfig(
+    appodealEnabled: json['appodeal_enabled'] ?? true,
+    casEnabled: json['cas_enabled'] ?? true,
+  );
+  factory AdNetworksConfig.defaults() => AdNetworksConfig(appodealEnabled: true, casEnabled: true);
+  Map<String, dynamic> toJson() => {'appodeal_enabled': appodealEnabled, 'cas_enabled': casEnabled};
 }
 
 class AppOpenAdConfig {
   final bool enabled;
   final int cooldownHours;
   final String adUnitId;
+  final String provider;
 
   AppOpenAdConfig({
     required this.enabled,
     required this.cooldownHours,
     required this.adUnitId,
+    required this.provider,
   });
 
   factory AppOpenAdConfig.fromJson(Map<String, dynamic> json) {
@@ -66,6 +85,7 @@ class AppOpenAdConfig {
       enabled: json['enabled'] ?? true,
       cooldownHours: json['cooldown_hours'] ?? 4,
       adUnitId: json['ad_unit_id'] ?? AppOpenAdConfig.defaults().adUnitId,
+      provider: json['provider'] ?? 'cas',
     );
   }
 
@@ -73,12 +93,14 @@ class AppOpenAdConfig {
     enabled: false, // ✅ 6.5 — disabled when no config loaded
     cooldownHours: 4,
     adUnitId: '', // ✅ 6.5 — empty string, not test ID
+    provider: 'cas',
   );
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
     'cooldown_hours': cooldownHours,
     'ad_unit_id': adUnitId,
+    'provider': provider,
   };
 }
 
@@ -88,6 +110,10 @@ class InterstitialAdConfig {
   final int maxPerSession;
   final String adUnitId;
   final Map<String, bool> screens;
+  final String priority1;
+  final bool priority1Enabled;
+  final String priority2;
+  final bool priority2Enabled;
 
   InterstitialAdConfig({
     required this.enabled,
@@ -95,6 +121,10 @@ class InterstitialAdConfig {
     required this.maxPerSession,
     required this.adUnitId,
     required this.screens,
+    required this.priority1,
+    required this.priority1Enabled,
+    required this.priority2,
+    required this.priority2Enabled,
   });
 
   factory InterstitialAdConfig.fromJson(Map<String, dynamic> json) {
@@ -105,6 +135,10 @@ class InterstitialAdConfig {
       maxPerSession: json['max_per_session'] ?? 3,
       adUnitId: json['ad_unit_id'] ?? InterstitialAdConfig.defaults().adUnitId,
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
+      priority1: json['priority_1'] ?? 'appodeal',
+      priority1Enabled: json['priority_1_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'cas',
+      priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
 
@@ -127,6 +161,10 @@ class InterstitialAdConfig {
       'rate_app_screen': false,
       'report_problem_screen': false,
     },
+    priority1: 'appodeal',
+    priority1Enabled: true,
+    priority2: 'cas',
+    priority2Enabled: false,
   );
 
   bool isEnabledForScreen(String screenKey) {
@@ -140,6 +178,10 @@ class InterstitialAdConfig {
     'max_per_session': maxPerSession,
     'ad_unit_id': adUnitId,
     'screens': screens,
+    'priority_1': priority1,
+    'priority_1_enabled': priority1Enabled,
+    'priority_2': priority2,
+    'priority_2_enabled': priority2Enabled,
   };
 }
 
@@ -149,6 +191,10 @@ class RewardedAdConfig {
   final int maxPerSession;
   final String adUnitId;
   final Map<String, bool> screens;
+  final String priority1;
+  final bool priority1Enabled;
+  final String priority2;
+  final bool priority2Enabled;
 
   RewardedAdConfig({
     required this.enabled,
@@ -156,6 +202,10 @@ class RewardedAdConfig {
     required this.maxPerSession,
     required this.adUnitId,
     required this.screens,
+    required this.priority1,
+    required this.priority1Enabled,
+    required this.priority2,
+    required this.priority2Enabled,
   });
 
   factory RewardedAdConfig.fromJson(Map<String, dynamic> json) {
@@ -166,6 +216,10 @@ class RewardedAdConfig {
       maxPerSession: json['max_per_session'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? RewardedAdConfig.defaults().adUnitId,
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
+      priority1: json['priority_1'] ?? 'appodeal',
+      priority1Enabled: json['priority_1_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'cas',
+      priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
 
@@ -188,6 +242,10 @@ class RewardedAdConfig {
       'rate_app_screen': false,
       'report_problem_screen': false,
     },
+    priority1: 'appodeal',
+    priority1Enabled: true,
+    priority2: 'cas',
+    priority2Enabled: false,
   );
 
   bool isEnabledForScreen(String screenKey) {
@@ -201,6 +259,10 @@ class RewardedAdConfig {
     'max_per_session': maxPerSession,
     'ad_unit_id': adUnitId,
     'screens': screens,
+    'priority_1': priority1,
+    'priority_1_enabled': priority1Enabled,
+    'priority_2': priority2,
+    'priority_2_enabled': priority2Enabled,
   };
 }
 

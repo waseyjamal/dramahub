@@ -19,25 +19,24 @@ class AdConfigService {
   /// Call this once at app startup
   Future<void> initialize() async {
     try {
-      // ✅ Force fresh fetch by adding a timestamp (bypasses 5-min GitHub cache)
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final urlWithCacheBuster = '$_configUrl?t=$timestamp';
-
       final response = await http
-          .get(Uri.parse(urlWithCacheBuster))
-          .timeout(const Duration(seconds: 5));
+          .get(Uri.parse(_configUrl))
+          .timeout(const Duration(seconds: 3));
+
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         _config = AdConfigModel.fromJson(json);
-        debugPrint('✅ AdConfig loaded from remote');
+        if (kDebugMode) { debugPrint('✅ AdConfig loaded from remote'); }
       } else {
-        debugPrint(
-          '⚠️ AdConfig fetch failed: ${response.statusCode}, using defaults',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ AdConfig fetch failed: ${response.statusCode}, using defaults',
+          );
+        }
       }
     } catch (e) {
-      debugPrint('⚠️ AdConfig fetch error: $e, using defaults');
+      if (kDebugMode) { debugPrint('⚠️ AdConfig fetch error: $e, using defaults'); }
       // Falls back to AdConfigModel.defaults() — app works normally
     } finally {
       _isInitialized = true; // ✅ B-4 — always mark ready, even on failure

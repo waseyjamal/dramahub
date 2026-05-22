@@ -28,6 +28,7 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _launch(String url) async {
+    if (!AppUrls.isSafeUrl(url)) return;
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }

@@ -9,7 +9,10 @@ class AppConfigModel {
   final int latestVersion;
   final bool forceUpdate;
   final List<String> heroSliderDramaIds;
-  final int dataVersion; // ✅ version system — cache invalidation
+  final int dataVersion;
+  final String cdnBase;
+  final String instagramUrl;
+  final String websiteUrl;
 
   AppConfigModel({
     required this.appName,
@@ -21,7 +24,10 @@ class AppConfigModel {
     required this.latestVersion,
     required this.forceUpdate,
     required this.heroSliderDramaIds,
-    required this.dataVersion, // ✅
+    required this.dataVersion,
+    required this.cdnBase,
+    required this.instagramUrl,
+    required this.websiteUrl,
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -44,7 +50,12 @@ class AppConfigModel {
       latestVersion: json['latestVersion'] ?? 1,
       forceUpdate: json['forceUpdate'] ?? false,
       heroSliderDramaIds: heroIds,
-      dataVersion: json['data_version'] ?? 1, // ✅
+      dataVersion: json['data_version'] ?? 1,
+      cdnBase: (json['cdn_base'] as String?)?.trim().isNotEmpty == true
+          ? (json['cdn_base'] as String).trim().replaceAll(RegExp(r'/$'), '')
+          : 'https://dramahub-data.waseyjamal000.workers.dev',
+      instagramUrl: json['instagram_url'] ?? 'https://instagram.com/arafta_hindi',
+      websiteUrl: json['website_url'] ?? 'https://drama-hubs.blogspot.com',
     );
   }
 
@@ -59,7 +70,10 @@ class AppConfigModel {
       latestVersion: 1,
       forceUpdate: false,
       heroSliderDramaIds: [],
-      dataVersion: 1, // ✅
+      dataVersion: 1,
+      cdnBase: 'https://dramahub-data.waseyjamal000.workers.dev',
+      instagramUrl: 'https://instagram.com/arafta_hindi',
+      websiteUrl: 'https://drama-hubs.blogspot.com',
     );
   }
 }

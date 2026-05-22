@@ -7,6 +7,7 @@ import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
+import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -79,10 +80,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.lg,
           ),
-          itemCount: controller.historyItems.length,
-
+          itemCount: controller.historyItems.length + 1,
           itemBuilder: (context, index) {
-            final item = controller.historyItems[index];
+            if (index == 0) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: AppSpacing.md),
+                child: CasNativeAdWidget(screenKey: 'history_screen'),
+              );
+            }
+            final item = controller.historyItems[index - 1];
             return _HistoryCard(
               item: item,
               onTap: () {

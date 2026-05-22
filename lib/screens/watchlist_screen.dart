@@ -11,6 +11,7 @@ import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
+import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
 
 class WatchlistScreen extends StatefulWidget {
   final VoidCallback? onBrowseTapped;
@@ -102,6 +103,11 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                   ),
                 ),
               ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: CasNativeAdWidget(screenKey: 'watchlist_screen'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.symmetric(

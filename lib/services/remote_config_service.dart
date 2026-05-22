@@ -13,26 +13,38 @@ class RemoteConfigService {
     "maintenance_mode": false,
   };
 
-  Future<Map<String, dynamic>> fetchAppConfig() async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final url = '$_configUrl?t=$timestamp';
+  // GitHub raw — independent of Cloudflare, used as fallback
+  static const String _githubFallbackUrl =
+      'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/app_config.json';
 
+  Future<Map<String, dynamic>> fetchAppConfig() async {
+    // Try primary (Cloudflare Worker) first
+    final primary = await _fetchFrom(_configUrl);
+    if (primary != null) return primary;
+
+    if (kDebugMode) { debugPrint('⚠️ Primary config fetch failed — trying GitHub fallback'); }
+
+    // Try GitHub raw directly (completely independent of Cloudflare)
+    final fallback = await _fetchFrom(_githubFallbackUrl);
+    if (fallback != null) return fallback;
+
+    if (kDebugMode) { debugPrint('⚠️ Both config sources failed — using defaults'); }
+    return _defaultConfig;
+  }
+
+  Future<Map<String, dynamic>?> _fetchFrom(String url) async {
+    try {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 5));
-
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
-      } else {
-        debugPrint(
-          'Failed to load app config: ${response.statusCode}',
-        ); // ✅ 8.5
-        return _defaultConfig;
       }
+      if (kDebugMode) { debugPrint('Config fetch non-200 from $url: ${response.statusCode}'); }
+      return null;
     } catch (e) {
-      debugPrint('Error fetching app config: $e'); // ✅ 8.5
-      return _defaultConfig;
+      if (kDebugMode) { debugPrint('Config fetch error from $url: $e'); }
+      return null;
     }
   }
 }

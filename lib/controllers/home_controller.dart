@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -13,6 +14,7 @@ import 'package:drama_hub/utils/constants.dart';
 import 'package:drama_hub/config/app_config_service.dart';
 import 'dart:async';
 import 'package:drama_hub/controllers/episodes_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeController extends GetxController {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
@@ -62,7 +64,7 @@ class HomeController extends GetxController {
         DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      debugPrint('Cache save error: $e');
+      if (kDebugMode) { debugPrint('Cache save error: $e'); }
     }
   }
 
@@ -73,7 +75,7 @@ class HomeController extends GetxController {
       if (jsonList.isEmpty) return [];
       return jsonList.map((e) => DramaModel.fromJson(jsonDecode(e))).toList();
     } catch (e) {
-      debugPrint('Cache load error: $e');
+      if (kDebugMode) { debugPrint('Cache load error: $e'); }
       return [];
     }
   }
@@ -107,14 +109,17 @@ class HomeController extends GetxController {
       // app_config.json is tiny (~500 bytes) served from Cloudflare edge
       // This ensures data_version is always current before cache check
       await AppConfigService.instance.reloadConfig();
+      _checkAndShowUpdateDialog();
 
       // ✅ Version check — clears all caches if data_version bumped
       final newVersion = AppConfigService.instance.config.dataVersion;
       final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
       if (newVersion != savedVersion) {
-        debugPrint(
-          'data_version changed $savedVersion → $newVersion — clearing all caches',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'data_version changed $savedVersion → $newVersion — clearing all caches',
+          );
+        }
         await prefs.remove(StorageKeys.cachedDramas);
         await prefs.remove(StorageKeys.cachedDramasTime);
         final keys = prefs.getKeys().toList();
@@ -136,7 +141,7 @@ class HomeController extends GetxController {
       if (isCacheFresh) {
         final cached = await _loadCachedDramas();
         if (cached.isNotEmpty) {
-          debugPrint('Drama cache hit — ${cached.length} dramas');
+          if (kDebugMode) { debugPrint('Drama cache hit — ${cached.length} dramas'); }
           allDramas.assignAll(cached);
           _currentPage.value = 1;
           hasMoreDramas.value = cached.length > _pageSize;
@@ -163,7 +168,7 @@ class HomeController extends GetxController {
       _resolveHeroSlider(activeDramas);
       _loadLatestEpisodes(activeDramas);
     } catch (e) {
-      debugPrint('Error loading dramas: $e');
+      if (kDebugMode) { debugPrint('Error loading dramas: $e'); }
       hasError.value = true;
       errorMessage.value = 'Something went wrong. Please try again.';
     } finally {
@@ -190,7 +195,7 @@ class HomeController extends GetxController {
 
       heroSliderDramas.assignAll(dramas.take(3).toList());
     } catch (e) {
-      debugPrint('Hero slider resolve error: $e');
+      if (kDebugMode) { debugPrint('Hero slider resolve error: $e'); }
       heroSliderDramas.assignAll(dramas.take(3).toList());
     }
   }
@@ -226,7 +231,7 @@ class HomeController extends GetxController {
                   }
                 }
               } catch (e) {
-                debugPrint('Episode load failed for ${drama.id}: $e');
+                if (kDebugMode) { debugPrint('Episode load failed for ${drama.id}: $e'); }
               } finally {
                 active--;
               }
@@ -248,7 +253,7 @@ class HomeController extends GetxController {
 
       latestEpisodes.assignAll(results.take(10).toList());
     } catch (e) {
-      debugPrint('Error loading latest episodes: $e');
+      if (kDebugMode) { debugPrint('Error loading latest episodes: $e'); }
     }
   }
 
@@ -338,6 +343,97 @@ class HomeController extends GetxController {
         precacheImage(CachedNetworkImageProvider(drama.posterImage), context);
       }
     }
+  }
+
+  // ✅ Force update safety net — runs after reloadConfig() on home load
+  // Catches users whose startup check timed out on slow connections
+  static const int _currentAppVersion = 7;
+  bool _updateDialogShown = false;
+
+  void _checkAndShowUpdateDialog() {
+    if (_updateDialogShown) return;
+    final config = AppConfigService.instance.config;
+    if (config.latestVersion <= _currentAppVersion) return;
+    if (!config.forceUpdate) return;
+    _updateDialogShown = true;
+    Get.dialog(
+      _buildUpdateDialog(force: true),
+      barrierDismissible: false,
+    );
+  }
+
+  Widget _buildUpdateDialog({required bool force}) {
+    return Dialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              force ? Icons.system_update_rounded : Icons.new_releases_rounded,
+              color: force ? Colors.redAccent : Colors.amber,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              force ? 'Update Required' : 'Update Available',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              force
+                  ? 'A new version of Drama Hub is available. Please update to continue.'
+                  : 'A new version of Drama Hub is available with new features and improvements.',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (!force)
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text(
+                  'Later',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  if (!AppUrls.isSafeUrl(AppUrls.playStore)) return;
+                  await launchUrl(
+                    Uri.parse(AppUrls.playStore),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                icon: const Icon(Icons.download_rounded),
+                label: const Text(
+                  'Update on Play Store',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override

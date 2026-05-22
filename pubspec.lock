@@ -89,6 +89,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  clever_ads_solutions:
+    dependency: "direct main"
+    description:
+      name: clever_ads_solutions
+      sha256: e2b81eaef8a166a55ac33467b2017383ee2e41aa9dd24086970f047cd327a609
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.6.6"
   clock:
     dependency: transitive
     description:

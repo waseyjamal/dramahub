@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:firebase_analytics/firebase_analytics.dart'; // ✅ #13
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/models/drama_model.dart';
@@ -32,7 +32,9 @@ class WatchlistController extends GetxController {
       watchlist.assignAll(dramas);
     } catch (e) {
       // ✅ #3 — set error state instead of silent fail
-      debugPrint('Error loading watchlist: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading watchlist: $e');
+      }
       hasLoadError.value = true;
     }
   }
@@ -43,7 +45,9 @@ class WatchlistController extends GetxController {
       final jsonList = watchlist.map((d) => jsonEncode(d.toJson())).toList();
       await prefs.setStringList(StorageKeys.watchlist, jsonList);
     } catch (e) {
-      debugPrint('Error saving watchlist: $e');
+      if (kDebugMode) {
+        debugPrint('Error saving watchlist: $e');
+      }
     }
   }
 

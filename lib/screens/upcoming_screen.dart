@@ -323,6 +323,7 @@ class _CTASection extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               HapticFeedback.lightImpact();
+              if (!AppUrls.isSafeUrl(AppUrls.telegram)) return;
               final url = Uri.parse(AppUrls.telegram);
               canLaunchUrl(url).then((can) {
                 if (can) launchUrl(url, mode: LaunchMode.externalApplication);

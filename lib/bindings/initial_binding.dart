@@ -1,4 +1,3 @@
-import 'package:flutter/scheduler.dart';
 import 'package:drama_hub/services/vast_ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/services/data_service.dart';
@@ -18,12 +17,10 @@ class InitialBinding extends Bindings {
     // Was initializing at startup even though only needed on VideoScreen
     Get.lazyPut<VideoService>(() => VideoService(), fenix: true);
 
-    // ✅ 5.6 — AdService delayed to after first frame
-    // AdMob SDK warm-up costs 200-400ms — no need to block first paint
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      Get.put(AdService(), permanent: true);
-      Get.put(VastAdService(), permanent: true);
-    });
+    // CasService already registered in main.dart before runApp
+    // Only register AdService and VastAdService here
+    Get.put(AdService(), permanent: true);
+    Get.put(VastAdService(), permanent: true);
 
     // Controllers — all with fenix:true (from fix 4.2)
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);

@@ -16,6 +16,7 @@ import 'package:drama_hub/widgets/animated_widgets.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
 import 'package:drama_hub/controllers/watchlist_controller.dart';
 import 'package:drama_hub/widgets/telegram_cta_button.dart';
+import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
 
 /// Home screen
 ///
@@ -297,6 +298,8 @@ class _HomeScreenState extends State<HomeScreen>
                             style: AppTypography.title.copyWith(fontSize: 18),
                           ),
                         ),
+                        const CasNativeAdWidget(screenKey: 'home_screen'),
+                        const SizedBox(height: AppSpacing.md),
                       ]),
                     ),
                   ),
@@ -978,6 +981,7 @@ class _LatestEpisodesRow extends StatelessWidget {
             height: 130,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              itemExtent: 212.0,
               itemCount: episodes.length,
               itemBuilder: (context, index) {
                 final item = episodes[index];

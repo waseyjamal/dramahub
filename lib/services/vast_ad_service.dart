@@ -37,7 +37,7 @@ class VastAdService extends GetxService {
     if (diff.inHours >= 4) {
       _sessionAdCount = 0;
       _sessionStartTime = DateTime.now();
-      debugPrint('VastAdService: session reset');
+      if (kDebugMode) { debugPrint('VastAdService: session reset'); }
     }
   }
 
@@ -50,7 +50,7 @@ class VastAdService extends GetxService {
 
     // Check max per session
     if (_sessionAdCount >= _config.maxPerSession) {
-      debugPrint('VastAdService: max per session reached');
+      if (kDebugMode) { debugPrint('VastAdService: max per session reached'); }
       return false;
     }
 
@@ -58,7 +58,7 @@ class VastAdService extends GetxService {
     if (_lastAdShownTime != null) {
       final elapsed = DateTime.now().difference(_lastAdShownTime!);
       if (elapsed.inMinutes < _config.gapBetweenAdsMinutes) {
-        debugPrint('VastAdService: gap not reached yet');
+        if (kDebugMode) { debugPrint('VastAdService: gap not reached yet'); }
         return false;
       }
     }
@@ -72,20 +72,20 @@ class VastAdService extends GetxService {
     final waterfall = _config.activeWaterfall;
 
     for (final entry in waterfall) {
-      debugPrint('VastAdService: trying ${entry.network}');
+      if (kDebugMode) { debugPrint('VastAdService: trying ${entry.network}'); }
       try {
         final result = await _fetchVastXml(entry);
         if (result.success) {
-          debugPrint('VastAdService: got ad from ${entry.network}');
+          if (kDebugMode) { debugPrint('VastAdService: got ad from ${entry.network}'); }
           return result;
         }
       } catch (e) {
-        debugPrint('VastAdService: ${entry.network} failed — $e');
+        if (kDebugMode) { debugPrint('VastAdService: ${entry.network} failed — $e'); }
         continue;
       }
     }
 
-    debugPrint('VastAdService: all networks failed');
+    if (kDebugMode) { debugPrint('VastAdService: all networks failed'); }
     return VastAdResult.empty();
   }
 
@@ -97,15 +97,15 @@ class VastAdService extends GetxService {
   Future<VastAdResult> _fetchWithRedirect(String url, String network,
       {int depth = 0}) async {
     if (depth > 3) {
-      debugPrint('VastAdService: max wrapper depth reached');
+      if (kDebugMode) { debugPrint('VastAdService: max wrapper depth reached'); }
       return VastAdResult.empty();
     }
 
     final response =
-        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      debugPrint('VastAdService: HTTP ${response.statusCode} from $url');
+      if (kDebugMode) { debugPrint('VastAdService: HTTP ${response.statusCode} from $url'); }
       return VastAdResult.empty();
     }
 
@@ -120,7 +120,7 @@ class VastAdService extends GetxService {
     if (wrapperMatch != null) {
       final wrapperUrl = wrapperMatch.group(1)?.trim() ?? '';
       if (wrapperUrl.isNotEmpty) {
-        debugPrint('VastAdService: following wrapper → $wrapperUrl');
+        if (kDebugMode) { debugPrint('VastAdService: following wrapper → $wrapperUrl'); }
         return await _fetchWithRedirect(wrapperUrl, network, depth: depth + 1);
       }
     }
@@ -140,7 +140,7 @@ class VastAdService extends GetxService {
         cdataMatch?.group(1)?.trim() ?? plainMatch?.group(1)?.trim() ?? '';
 
     if (mp4Url.isEmpty) {
-      debugPrint('VastAdService: no MP4 found in VAST from $network');
+      if (kDebugMode) { debugPrint('VastAdService: no MP4 found in VAST from $network'); }
       return VastAdResult.empty();
     }
 
@@ -165,15 +165,15 @@ class VastAdService extends GetxService {
     http.get(Uri.parse(impressionUrl)).catchError((_) {
       return http.Response('', 404);
     });
-    debugPrint('VastAdService: impression fired for $impressionUrl');
+    if (kDebugMode) { debugPrint('VastAdService: impression fired for $impressionUrl'); }
   }
 
   /// Call this after ad is shown successfully
   void recordAdShown() {
     _sessionAdCount++;
     _lastAdShownTime = DateTime.now();
-    debugPrint(
+    if (kDebugMode) { debugPrint(
       'VastAdService: ad recorded — count: $_sessionAdCount',
-    );
+    ); }
   }
 }

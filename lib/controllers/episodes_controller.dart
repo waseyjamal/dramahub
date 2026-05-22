@@ -10,7 +10,6 @@ import 'package:drama_hub/routes/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/controllers/history_controller.dart';
 import 'package:drama_hub/utils/constants.dart'; // ✅ StorageKeys
-import 'package:drama_hub/services/analytics_writer_service.dart';
 import 'dart:async';
 import 'package:drama_hub/controllers/video_controller.dart';
 
@@ -26,6 +25,7 @@ class EpisodesController extends GetxController {
   final RxBool hasError = false.obs;
   final RxString errorMessage = ''.obs;
   Timer? _searchDebounce;
+  bool _isOpeningEpisode = false;
   late DramaModel selectedDrama;
   bool skipInterstitialOnOpen = false;
 
@@ -43,7 +43,11 @@ class EpisodesController extends GetxController {
       final args = Get.arguments as Map;
       final drama = args['drama'];
       if (drama == null || drama is! DramaModel) {
-        debugPrint('EpisodesController: invalid drama in map — navigating back');
+        if (kDebugMode) {
+          debugPrint(
+            'EpisodesController: invalid drama in map — navigating back',
+          );
+        }
         Future.microtask(() => Get.back());
         return;
       }
@@ -68,7 +72,9 @@ class EpisodesController extends GetxController {
         });
       }
     } else {
-      debugPrint('EpisodesController: invalid arguments — navigating back');
+      if (kDebugMode) {
+        debugPrint('EpisodesController: invalid arguments — navigating back');
+      }
       Future.microtask(() => Get.back());
     }
   }
@@ -95,7 +101,9 @@ class EpisodesController extends GetxController {
       allEpisodes.assignAll(safeList);
       filteredEpisodes.assignAll(safeList);
     } catch (e) {
-      debugPrint('Error loading episodes: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading episodes: $e');
+      }
       hasError.value = true;
       errorMessage.value = 'Failed to load episodes. Please try again.';
     } finally {
@@ -126,16 +134,22 @@ class EpisodesController extends GetxController {
   }
 
   Future<void> openEpisode(EpisodeModel episode) async {
-    if (episode.isUpcoming) {
-      Get.toNamed(AppRoutes.upcoming, arguments: episode);
-      return;
+    if (_isOpeningEpisode) return;
+    _isOpeningEpisode = true;
+    try {
+      if (episode.isUpcoming) {
+        Get.toNamed(AppRoutes.upcoming, arguments: episode);
+        return;
+      }
+      await saveLastWatched(episode);
+      await _adService.showRewardedForScreen(
+        'episodes_screen',
+        onRewarded: () => _navigateToVideo(episode),
+        onNotAvailable: () => _navigateToVideo(episode),
+      );
+    } finally {
+      _isOpeningEpisode = false;
     }
-    await saveLastWatched(episode);
-    await _adService.showRewardedForScreen(
-      'episodes_screen',
-      onRewarded: () => _navigateToVideo(episode),
-      onNotAvailable: () => _navigateToVideo(episode),
-    );
   }
 
   void _navigateToVideo(EpisodeModel episode) {
@@ -147,14 +161,6 @@ class EpisodesController extends GetxController {
         'episode_number': episode.episodeNumber,
         'episode_title': episode.title,
       },
-    );
-    // ✅ Write to Firestore for admin analytics dashboard
-    AnalyticsWriterService.instance.logEpisodeWatch(
-      dramaId: selectedDrama.id,
-      dramaTitle: selectedDrama.title,
-      episodeId: episode.id,
-      episodeTitle: episode.title,
-      episodeNumber: episode.episodeNumber,
     );
     // ✅ Pass dramaTitle and dramaBanner for video screen display
     Get.delete<VideoController>(force: true);

@@ -35,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _launch(String url) async {
+    if (!AppUrls.isSafeUrl(url)) return;
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -118,14 +119,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   iconColor: const Color(0xFFE1306C),
                   title: 'Instagram',
                   subtitle: '@arafta_hindi',
-                  onTap: () => _launch('https://instagram.com/arafta_hindi'),
+                  onTap: () => _launch(AppUrls.instagram),
                 ),
                 _ProfileTile(
                   icon: Icons.language_rounded,
                   iconColor: AppColors.primaryRed,
                   title: 'Website',
                   subtitle: 'drama-hubs.blogspot.com',
-                  onTap: () => _launch('https://drama-hubs.blogspot.com'),
+                  onTap: () => _launch(AppUrls.website),
                 ),
 
                 const SizedBox(height: AppSpacing.lg),

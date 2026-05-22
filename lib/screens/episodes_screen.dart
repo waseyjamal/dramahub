@@ -1,5 +1,6 @@
 import 'package:drama_hub/utils/constants.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -164,6 +165,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
                     const _MembershipPromoCard(),
                   const SizedBox(height: AppSpacing.xl),
                   const _SearchBar(),
+                  const SizedBox(height: AppSpacing.md),
+                  CasNativeAdWidget(screenKey: 'episodes_screen'),
                   const SizedBox(height: AppSpacing.xl),
                 ]),
               ),
@@ -209,6 +212,9 @@ class EpisodesScreen extends GetView<EpisodesController> {
                     mainAxisSpacing: AppSpacing.md,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index >= controller.filteredEpisodes.length) {
+                      return const SizedBox.shrink();
+                    }
                     final episode = controller.filteredEpisodes[index];
                     return _EpisodeCard(
                       episode: episode,

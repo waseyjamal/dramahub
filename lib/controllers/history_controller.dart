@@ -28,9 +28,11 @@ class HistoryController extends GetxController {
       // Prevents NullPointerException when old entries lack new required fields
       final savedVersion = prefs.getInt(_schemaVersionKey) ?? 0;
       if (savedVersion < _schemaVersion) {
-        debugPrint(
-          'History schema migrated v$savedVersion→v$_schemaVersion — clearing',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'History schema migrated v$savedVersion→v$_schemaVersion — clearing',
+          );
+        }
         await prefs.remove(StorageKeys.watchHistory);
         await prefs.setInt(_schemaVersionKey, _schemaVersion);
         historyItems.clear();
@@ -45,7 +47,7 @@ class HistoryController extends GetxController {
         );
       }
     } catch (e) {
-      debugPrint('Error loading history: $e');
+      if (kDebugMode) { debugPrint('Error loading history: $e'); }
     }
   }
 
@@ -85,7 +87,7 @@ class HistoryController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_historyKey, jsonEncode(historyItems.toList()));
     } catch (e) {
-      debugPrint('Error saving history: $e');
+      if (kDebugMode) { debugPrint('Error saving history: $e'); }
     }
   }
 
@@ -95,7 +97,7 @@ class HistoryController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_historyKey);
     } catch (e) {
-      debugPrint('Error clearing history: $e');
+      if (kDebugMode) { debugPrint('Error clearing history: $e'); }
     }
   }
 }

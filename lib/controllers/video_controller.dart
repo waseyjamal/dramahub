@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -69,13 +69,13 @@ class VideoController extends GetxController {
       Future.microtask(() => Get.back());
       return;
     }
-    _videoService.enableSecureMode();
+    _videoService.enableSecureMode().catchError((_) {});
     _loadExtraData();
   }
 
   @override
   void onClose() {
-    _videoService.disableSecureMode();
+    _videoService.disableSecureMode().catchError((_) {});
     super.onClose();
   }
 
@@ -190,7 +190,9 @@ class VideoController extends GetxController {
         },
       );
     } catch (e) {
-      debugPrint('Download ad error: $e');
+      if (kDebugMode) {
+        debugPrint('Download ad error: $e');
+      }
       // On any error — go directly, never block user
       Get.toNamed(
         AppRoutes.download,
