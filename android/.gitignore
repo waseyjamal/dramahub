@@ -1,3 +1,4 @@
+# Existing entries
 gradle-wrapper.jar
 /.gradle
 /captures/
@@ -7,10 +8,40 @@ gradle-wrapper.jar
 GeneratedPluginRegistrant.java
 .cxx/
 
-
 # Remember to never publicly share your keystore.
-# See https://flutter.dev/to/reference-keystore
 key.properties
 **/*.keystore
 **/*.jks
 app/google-services.json
+
+# ── ADD THESE ──────────────────────────────────
+
+# Java heap dumps (the 700MB culprit)
+*.hprof
+
+# Android build outputs
+/build/
+app/build/
+
+# Gradle cache & metadata
+.gradle/
+*.gradle.kts.dsl-cache
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock        # remove this line if it's a library, keep for apps
+
+# macOS junk
+.DS_Store
+
+# Windows junk
+Thumbs.db
