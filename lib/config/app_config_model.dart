@@ -13,6 +13,11 @@ class AppConfigModel {
   final String cdnBase;
   final String instagramUrl;
   final String websiteUrl;
+  // ── Telegram Bot (for Suggest Drama & Report Problem submissions) ──
+  final String telegramBotToken;
+  final String telegramChatId;
+  // ✅ ADDED — Fallback update options
+  final FallbackUpdateConfig fallbackUpdate;
 
   AppConfigModel({
     required this.appName,
@@ -28,6 +33,10 @@ class AppConfigModel {
     required this.cdnBase,
     required this.instagramUrl,
     required this.websiteUrl,
+    required this.telegramBotToken,
+    required this.telegramChatId,
+    // ✅ ADDED
+    required this.fallbackUpdate,
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -54,8 +63,15 @@ class AppConfigModel {
       cdnBase: (json['cdn_base'] as String?)?.trim().isNotEmpty == true
           ? (json['cdn_base'] as String).trim().replaceAll(RegExp(r'/$'), '')
           : 'https://dramahub-data.waseyjamal000.workers.dev',
-      instagramUrl: json['instagram_url'] ?? 'https://instagram.com/arafta_hindi',
-      websiteUrl: json['website_url'] ?? 'https://drama-hubs.blogspot.com',
+      instagramUrl:
+          json['instagram_url'] ?? 'https://instagram.com/arafta_hindi',
+      websiteUrl: json['website_url'] ?? 'https://dramahubs.stream/',
+      telegramBotToken: json['telegram_bot_token'] ?? '',
+      telegramChatId: json['telegram_chat_id'] ?? '',
+      // ✅ ADDED — safe fallback if key missing in old config
+      fallbackUpdate: FallbackUpdateConfig.fromJson(
+        json['fallback_update'] as Map<String, dynamic>? ?? {},
+      ),
     );
   }
 
@@ -73,7 +89,43 @@ class AppConfigModel {
       dataVersion: 1,
       cdnBase: 'https://dramahub-data.waseyjamal000.workers.dev',
       instagramUrl: 'https://instagram.com/arafta_hindi',
-      websiteUrl: 'https://drama-hubs.blogspot.com',
+      websiteUrl: 'https://dramahubs.stream/',
+      telegramBotToken: '',
+      telegramChatId: '',
+      // ✅ ADDED — defaults to both options hidden
+      fallbackUpdate: FallbackUpdateConfig.defaults(),
     );
   }
+}
+
+/// Fallback update delivery config — controlled remotely via admin panel
+/// Both options default to false — never shown unless admin explicitly enables
+class FallbackUpdateConfig {
+  final bool telegramEnabled;
+  final String telegramUrl;
+  final bool websiteEnabled;
+  final String websiteUrl;
+
+  FallbackUpdateConfig({
+    required this.telegramEnabled,
+    required this.telegramUrl,
+    required this.websiteEnabled,
+    required this.websiteUrl,
+  });
+
+  factory FallbackUpdateConfig.fromJson(Map<String, dynamic> json) {
+    return FallbackUpdateConfig(
+      telegramEnabled: json['telegram_enabled'] ?? false,
+      telegramUrl: json['telegram_url'] ?? 'https://t.me/araftahindisub',
+      websiteEnabled: json['website_enabled'] ?? false,
+      websiteUrl: json['website_url'] ?? 'https://drama-hubs.blogspot.com',
+    );
+  }
+
+  factory FallbackUpdateConfig.defaults() => FallbackUpdateConfig(
+    telegramEnabled: false,
+    telegramUrl: 'https://t.me/araftahindisub',
+    websiteEnabled: false,
+    websiteUrl: 'https://dramahubs.stream/',
+  );
 }

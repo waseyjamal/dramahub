@@ -19,8 +19,6 @@ import 'package:drama_hub/utils/constants.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'app.dart';
 
-/// Current app version
-const int currentAppVersion = 7;
 
 /// Main entry point for Drama Hub app
 Future<void> main() async {
@@ -202,7 +200,7 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
 
   void _checkVersionUpdate() {
     final config = AppConfigService.instance.config;
-    if (config.latestVersion <= currentAppVersion) return;
+    if (config.latestVersion <= Constants.currentBuildVersion) return;
     if (!config.forceUpdate) return;
     _showForceUpdateDialog();
   }
@@ -216,6 +214,8 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
   }
 
   void _showForceUpdateDialog() {
+    final fallback = AppConfigService.instance.config.fallbackUpdate;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -260,6 +260,8 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
+
+              // ── Primary: Play Store (always shown) ──
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -278,6 +280,72 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
                   ),
                 ),
               ),
+
+              // ── Fallback A: Telegram (admin controlled) ──
+              if (fallback.telegramEnabled) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      if (!AppUrls.isSafeUrl(fallback.telegramUrl)) return;
+                      await launchUrl(
+                        Uri.parse(fallback.telegramUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Get Update on Telegram',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              // ── Fallback B: Website (admin controlled) ──
+              if (fallback.websiteEnabled) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      if (!AppUrls.isSafeUrl(fallback.websiteUrl)) return;
+                      await launchUrl(
+                        Uri.parse(fallback.websiteUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.language_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Download from Website',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

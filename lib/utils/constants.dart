@@ -5,6 +5,11 @@ class Constants {
   static const String appName = 'Drama Hub';
   static const String appVersion = '1.0.0';
 
+  // ✅ ADDED — Single source of truth for current app version
+  // Update this ONLY when releasing a new build
+  // Matches versionCode in android/app/build.gradle.kts
+  static const int currentBuildVersion = 7;
+
   // API (placeholder for future use)
   static const String baseUrl = '';
 
@@ -54,12 +59,9 @@ class AppConstants {
 /// Change any URL from admin — no new APK needed.
 class AppUrls {
   // ── Dynamic (admin-controlled) ───────────────────────────────────────────
-  static String get telegram =>
-      AppConfigService.instance.config.telegramUrl;
-  static String get instagram =>
-      AppConfigService.instance.config.instagramUrl;
-  static String get website =>
-      AppConfigService.instance.config.websiteUrl;
+  static String get telegram => AppConfigService.instance.config.telegramUrl;
+  static String get instagram => AppConfigService.instance.config.instagramUrl;
+  static String get website => AppConfigService.instance.config.websiteUrl;
 
   // ── Static (rarely changes, not worth admin overhead) ────────────────────
   static const String playStore =

@@ -347,13 +347,12 @@ class HomeController extends GetxController {
 
   // ✅ Force update safety net — runs after reloadConfig() on home load
   // Catches users whose startup check timed out on slow connections
-  static const int _currentAppVersion = 7;
   bool _updateDialogShown = false;
 
   void _checkAndShowUpdateDialog() {
     if (_updateDialogShown) return;
     final config = AppConfigService.instance.config;
-    if (config.latestVersion <= _currentAppVersion) return;
+    if (config.latestVersion <= Constants.currentBuildVersion) return;
     if (!config.forceUpdate) return;
     _updateDialogShown = true;
     Get.dialog(
@@ -363,6 +362,8 @@ class HomeController extends GetxController {
   }
 
   Widget _buildUpdateDialog({required bool force}) {
+    final fallback = AppConfigService.instance.config.fallbackUpdate;
+
     return Dialog(
       backgroundColor: const Color(0xFF1A1A2E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -398,6 +399,8 @@ class HomeController extends GetxController {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+
+            // ── Soft update dismiss (non-force only) ──
             if (!force)
               TextButton(
                 onPressed: () => Get.back(),
@@ -406,6 +409,8 @@ class HomeController extends GetxController {
                   style: TextStyle(color: Colors.white54),
                 ),
               ),
+
+            // ── Primary: Play Store (always shown) ──
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -430,6 +435,72 @@ class HomeController extends GetxController {
                 ),
               ),
             ),
+
+            // ── Fallback A: Telegram (admin controlled) ──
+            if (fallback.telegramEnabled) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    if (!AppUrls.isSafeUrl(fallback.telegramUrl)) return;
+                    await launchUrl(
+                      Uri.parse(fallback.telegramUrl),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Get Update on Telegram',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            // ── Fallback B: Website (admin controlled) ──
+            if (fallback.websiteEnabled) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    if (!AppUrls.isSafeUrl(fallback.websiteUrl)) return;
+                    await launchUrl(
+                      Uri.parse(fallback.websiteUrl),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.language_rounded,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Download from Website',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
