@@ -42,4 +42,5 @@ class AppRoutes {
 
   /// Suggest a drama screen route
   static const String suggestDrama = '/suggest-drama';
+  static const String downloads = '/downloads';
 }

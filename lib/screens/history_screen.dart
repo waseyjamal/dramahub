@@ -45,65 +45,75 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-      body: Obx(() {
-        if (controller.historyItems.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.history_rounded,
-                  size: 80,
-                  color: Colors.white12,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'No Watch History',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Episodes you watch will appear here',
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
-                ),
-              ],
+      body: Column(
+        children: [
+          // ✅ Outside Obx — never rebuilt when historyItems changes
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              0,
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.lg,
+            child: CasNativeAdWidget(screenKey: 'history_screen'),
           ),
-          itemCount: controller.historyItems.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return const Padding(
-                padding: EdgeInsets.only(bottom: AppSpacing.md),
-                child: CasNativeAdWidget(screenKey: 'history_screen'),
-              );
-            }
-            final item = controller.historyItems[index - 1];
-            return _HistoryCard(
-              item: item,
-              onTap: () {
-                final homeController = Get.find<HomeController>();
-                final drama = homeController.allDramas.firstWhereOrNull(
-                  (d) => d.id == item['dramaId'],
+          Expanded(
+            child: Obx(() {
+              if (controller.historyItems.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.history_rounded,
+                        size: 80,
+                        color: Colors.white12,
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'No Watch History',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Episodes you watch will appear here',
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                    ],
+                  ),
                 );
-                if (drama != null) {
-                  homeController.goToEpisodes(drama);
-                }
-              },
-            );
-          },
-        );
-      }),
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                itemCount: controller.historyItems.length,
+                itemBuilder: (context, index) {
+                  final item = controller.historyItems[index];
+                  return _HistoryCard(
+                    item: item,
+                    onTap: () {
+                      final homeController = Get.find<HomeController>();
+                      final drama = homeController.allDramas.firstWhereOrNull(
+                        (d) => d.id == item['dramaId'],
+                      );
+                      if (drama != null) {
+                        homeController.goToEpisodes(drama);
+                      }
+                    },
+                  );
+                },
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 

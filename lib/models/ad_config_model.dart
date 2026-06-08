@@ -5,18 +5,22 @@ class AdConfigModel {
   final AppOpenAdConfig appOpen;
   final InterstitialAdConfig interstitial;
   final RewardedAdConfig rewarded;
+  final DownloadAdConfig download;
   final NativeAdConfig native;
   final VastAdConfig vast;
   final AdNetworksConfig adNetworks;
+  final OfflineAdConfig offlineAds;
 
   AdConfigModel({
     required this.adsEnabled,
     required this.appOpen,
     required this.interstitial,
     required this.rewarded,
+    required this.download,
     required this.native,
     required this.vast,
     required this.adNetworks,
+    required this.offlineAds,
   });
 
   factory AdConfigModel.fromJson(Map<String, dynamic> json) {
@@ -25,9 +29,11 @@ class AdConfigModel {
       appOpen: AppOpenAdConfig.fromJson(json['app_open'] ?? {}),
       interstitial: InterstitialAdConfig.fromJson(json['interstitial'] ?? {}),
       rewarded: RewardedAdConfig.fromJson(json['rewarded'] ?? {}),
+      download: DownloadAdConfig.fromJson(json['download'] ?? {}),
       native: NativeAdConfig.fromJson(json['native'] ?? {}),
       vast: VastAdConfig.fromJson(json['vast'] ?? {}),
       adNetworks: AdNetworksConfig.fromJson(json['ad_networks'] ?? {}),
+      offlineAds: OfflineAdConfig.fromJson(json['offline_ads'] ?? {}),
     );
   }
 
@@ -38,9 +44,11 @@ class AdConfigModel {
       appOpen: AppOpenAdConfig.defaults(),
       interstitial: InterstitialAdConfig.defaults(),
       rewarded: RewardedAdConfig.defaults(),
+      download: DownloadAdConfig.defaults(),
       native: NativeAdConfig.defaults(),
       vast: VastAdConfig.defaults(),
       adNetworks: AdNetworksConfig.defaults(),
+      offlineAds: OfflineAdConfig.defaults(),
     );
   }
 
@@ -49,9 +57,11 @@ class AdConfigModel {
     'app_open': appOpen.toJson(),
     'interstitial': interstitial.toJson(),
     'rewarded': rewarded.toJson(),
+    'download': download.toJson(),
     'native': native.toJson(),
     'vast': vast.toJson(),
     'ad_networks': adNetworks.toJson(),
+    'offline_ads': offlineAds.toJson(),
   };
 }
 
@@ -266,6 +276,58 @@ class RewardedAdConfig {
   };
 }
 
+class DownloadAdConfig {
+  final bool enabled;
+  final int cooldownSeconds;
+  final int maxPerSession;
+  final String priority1;
+  final bool priority1Enabled;
+  final String priority2;
+  final bool priority2Enabled;
+
+  DownloadAdConfig({
+    required this.enabled,
+    required this.cooldownSeconds,
+    required this.maxPerSession,
+    required this.priority1,
+    required this.priority1Enabled,
+    required this.priority2,
+    required this.priority2Enabled,
+  });
+
+  factory DownloadAdConfig.fromJson(Map<String, dynamic> json) {
+    return DownloadAdConfig(
+      enabled: json['enabled'] ?? true,
+      cooldownSeconds: json['cooldown_seconds'] ?? 120,
+      maxPerSession: json['max_per_session'] ?? 3,
+      priority1: json['priority_1'] ?? 'cas',
+      priority1Enabled: json['priority_1_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'appodeal',
+      priority2Enabled: json['priority_2_enabled'] ?? true,
+    );
+  }
+
+  factory DownloadAdConfig.defaults() => DownloadAdConfig(
+    enabled: false,
+    cooldownSeconds: 120,
+    maxPerSession: 3,
+    priority1: 'cas',
+    priority1Enabled: true,
+    priority2: 'appodeal',
+    priority2Enabled: true,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    'cooldown_seconds': cooldownSeconds,
+    'max_per_session': maxPerSession,
+    'priority_1': priority1,
+    'priority_1_enabled': priority1Enabled,
+    'priority_2': priority2,
+    'priority_2_enabled': priority2Enabled,
+  };
+}
+
 class NativeAdConfig {
   final bool enabled;
   final int everyNthCard;
@@ -316,3 +378,66 @@ class NativeAdConfig {
     'screens': screens, // ADD THIS
   };
 }
+
+class OfflineAdConfig {
+  final bool enabled;
+  final String adType; // 'interstitial' or 'rewarded'
+  final int maturityMinutes;
+  final int sessionCoolMinutes;
+  final int maxPerSession;
+  final String priority1;
+  final bool priority1Enabled;
+  final String priority2;
+  final bool priority2Enabled;
+
+  OfflineAdConfig({
+    required this.enabled,
+    required this.adType,
+    required this.maturityMinutes,
+    required this.sessionCoolMinutes,
+    required this.maxPerSession,
+    required this.priority1,
+    required this.priority1Enabled,
+    required this.priority2,
+    required this.priority2Enabled,
+  });
+
+  factory OfflineAdConfig.fromJson(Map<String, dynamic> json) {
+    return OfflineAdConfig(
+      enabled: json['enabled'] ?? false,
+      adType: json['ad_type'] ?? 'interstitial',
+      maturityMinutes: json['maturity_minutes'] ?? 5,
+      sessionCoolMinutes: json['session_cool_minutes'] ?? 5,
+      maxPerSession: json['max_per_session'] ?? 3,
+      priority1: json['priority_1'] ?? 'cas',
+      priority1Enabled: json['priority_1_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'appodeal',
+      priority2Enabled: json['priority_2_enabled'] ?? true,
+    );
+  }
+
+  factory OfflineAdConfig.defaults() => OfflineAdConfig(
+    enabled: false,
+    adType: 'interstitial',
+    maturityMinutes: 5,
+    sessionCoolMinutes: 5,
+    maxPerSession: 3,
+    priority1: 'cas',
+    priority1Enabled: true,
+    priority2: 'appodeal',
+    priority2Enabled: true,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    'ad_type': adType,
+    'maturity_minutes': maturityMinutes,
+    'session_cool_minutes': sessionCoolMinutes,
+    'max_per_session': maxPerSession,
+    'priority_1': priority1,
+    'priority_1_enabled': priority1Enabled,
+    'priority_2': priority2,
+    'priority_2_enabled': priority2Enabled,
+  };
+}
+

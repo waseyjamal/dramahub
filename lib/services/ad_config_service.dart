@@ -53,4 +53,5 @@ class AdConfigService {
   bool canShowRewardedOn(String screen) =>
       _config.adsEnabled && _config.rewarded.isEnabledForScreen(screen);
   bool get appOpenEnabled => _config.adsEnabled && _config.appOpen.enabled;
+  OfflineAdConfig get offlineAds => _config.offlineAds;
 }

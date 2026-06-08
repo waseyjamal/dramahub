@@ -33,10 +33,10 @@ android {
     }
     defaultConfig {
         applicationId = "com.dramahub.drama_hub"
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0.6"
+        versionCode = 9
+        versionName = "1.0.8"
         multiDexEnabled = true
     }
     buildTypes {
@@ -57,7 +57,7 @@ flutter {
 cas {
     useAdvertisingId = true
     adapters {
-        audienceNetwork = true
+        appLovin = true 
         bigoAds = true
         casExchange = true
         chartboost = true
@@ -67,9 +67,6 @@ cas {
         ironSource = true
         liftoffMonetize = true
         mintegral = true
-        ogury = true
-        startIO = true
-        unityAds = true
         smaato = true
         verve = true
     }
@@ -81,10 +78,11 @@ dependencies {
     implementation("com.appodeal.ads.sdk.adapters:applovin:13.5.1.0")
     implementation("com.appodeal.ads.sdk.adapters:applovin_max:13.5.1.1")
     implementation("com.appodeal.ads.sdk.adapters:bidmachine:3.6.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:bigo_ads:5.6.2.0")
     implementation("com.appodeal.ads.sdk.adapters:iab:1.8.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:level_play:9.1.0.0")
     implementation("com.appodeal.ads.sdk.adapters:sentry_analytics:8.26.0.0")
-    implementation("com.appodeal.ads.sdk.adapters:unity_ads:4.17.0.0")
     implementation("com.appodeal.ads.sdk.adapters:vungle:7.6.1.0")
+    implementation("com.appodeal.ads.sdk.adapters:ironsource:9.1.0.0")
+    implementation("com.appodeal.ads.sdk.adapters:mintegral:17.0.31.0")
+    implementation("com.appodeal.ads.sdk.adapters:dt_exchange:8.4.1.0")
+    implementation("com.appodeal.ads.sdk.adapters:inmobi:11.1.0.0")
 }

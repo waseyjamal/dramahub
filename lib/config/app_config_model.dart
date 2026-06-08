@@ -64,7 +64,7 @@ class AppConfigModel {
           ? (json['cdn_base'] as String).trim().replaceAll(RegExp(r'/$'), '')
           : 'https://dramahub-data.waseyjamal000.workers.dev',
       instagramUrl:
-          json['instagram_url'] ?? 'https://instagram.com/arafta_hindi',
+          json['instagram_url'] ?? 'https://instagram.com/dramas_hubs',
       websiteUrl: json['website_url'] ?? 'https://dramahubs.stream/',
       telegramBotToken: json['telegram_bot_token'] ?? '',
       telegramChatId: json['telegram_chat_id'] ?? '',
@@ -88,7 +88,7 @@ class AppConfigModel {
       heroSliderDramaIds: [],
       dataVersion: 1,
       cdnBase: 'https://dramahub-data.waseyjamal000.workers.dev',
-      instagramUrl: 'https://instagram.com/arafta_hindi',
+      instagramUrl: 'https://instagram.com/dramas_hubs',
       websiteUrl: 'https://dramahubs.stream/',
       telegramBotToken: '',
       telegramChatId: '',
@@ -99,33 +99,51 @@ class AppConfigModel {
 }
 
 /// Fallback update delivery config — controlled remotely via admin panel
-/// Both options default to false — never shown unless admin explicitly enables
+/// playstore_enabled defaults to true — safe by default
+/// telegram and website default to false — hidden until admin enables
 class FallbackUpdateConfig {
+  final bool playstoreEnabled;
+  final String playstoreUrl;
   final bool telegramEnabled;
   final String telegramUrl;
   final bool websiteEnabled;
   final String websiteUrl;
 
   FallbackUpdateConfig({
+    required this.playstoreEnabled,
+    required this.playstoreUrl,
     required this.telegramEnabled,
     required this.telegramUrl,
     required this.websiteEnabled,
     required this.websiteUrl,
   });
 
+  /// Safety check — at least one option must always be enabled
+  /// Prevents empty update dialog that locks users out permanently
+  bool get hasAtLeastOneOption =>
+      playstoreEnabled || telegramEnabled || websiteEnabled;
+
   factory FallbackUpdateConfig.fromJson(Map<String, dynamic> json) {
     return FallbackUpdateConfig(
+      playstoreEnabled: json['playstore_enabled'] ?? true,
+      playstoreUrl: json['playstore_url'] ??
+          'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
       telegramEnabled: json['telegram_enabled'] ?? false,
-      telegramUrl: json['telegram_url'] ?? 'https://t.me/araftahindisub',
+      telegramUrl:
+          json['telegram_url'] ?? 'https://t.me/araftahindisub',
       websiteEnabled: json['website_enabled'] ?? false,
-      websiteUrl: json['website_url'] ?? 'https://drama-hubs.blogspot.com',
+      websiteUrl:
+          json['website_url'] ?? 'https://dramahubs.stream/p/app-download.html',
     );
   }
 
   factory FallbackUpdateConfig.defaults() => FallbackUpdateConfig(
+    playstoreEnabled: true,
+    playstoreUrl:
+        'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
     telegramEnabled: false,
     telegramUrl: 'https://t.me/araftahindisub',
     websiteEnabled: false,
-    websiteUrl: 'https://dramahubs.stream/',
+    websiteUrl: 'https://dramahubs.stream/p/app-download.html',
   );
 }

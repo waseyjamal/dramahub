@@ -43,108 +43,121 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: Obx(() {
-          if (controller.watchlist.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('❤️', style: TextStyle(fontSize: 72)),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Your Watchlist is Empty',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            // ✅ Outside Obx — never rebuilt when watchlist changes
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                0,
+              ),
+              child: CasNativeAdWidget(screenKey: 'watchlist_screen'),
+            ),
+            Expanded(
+              child: Obx(() {
+                if (controller.watchlist.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('❤️', style: TextStyle(fontSize: 72)),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Your Watchlist is Empty',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Tap the ❤️ on any drama to save it here',
+                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            widget.onBrowseTapped?.call();
+                          },
+                          icon: const Icon(Icons.explore_rounded),
+                          label: const Text('Browse Dramas'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Tap the ❤️ on any drama to save it here',
-                    style: TextStyle(color: Colors.white54, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      widget.onBrowseTapped?.call(); // ✅ Fixed — uses callback
-                    },
-                    icon: const Icon(Icons.explore_rounded),
-                    label: const Text('Browse Dramas'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 14,
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.md,
+                        AppSpacing.lg,
+                        AppSpacing.md,
+                      ),
+                      child: Text(
+                        '${controller.watchlist.length} Drama${controller.watchlist.length == 1 ? '' : 's'} Saved',
+                        style: AppTypography.body.copyWith(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                ),
-                child: Text(
-                  '${controller.watchlist.length} Drama${controller.watchlist.length == 1 ? '' : 's'} Saved',
-                  style: AppTypography.body.copyWith(
-                    color: Colors.white54,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: CasNativeAdWidget(screenKey: 'watchlist_screen'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                  ),
-                  cacheExtent: 500,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.667,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
-                  ),
-                  itemCount: controller.watchlist.length,
-                  itemBuilder: (context, index) {
-                    final drama = controller.watchlist[index];
-                    return _WatchlistCard(
-                      drama: drama,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        AdService.instance.showRewardedForScreen(
-                          'watchlist_screen',
-                          onRewarded: () {
-                            _goToEpisodesSkipAd(homeController, drama);
-                          },
-                          onNotAvailable: () {
-                            _goToEpisodesSkipAd(homeController, drama);
-                          },
-                        );
-                      },
-                      onRemove: () => controller.toggleWatchlist(drama),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        }),
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                        ),
+                        cacheExtent: 500,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.667,
+                              crossAxisSpacing: AppSpacing.md,
+                              mainAxisSpacing: AppSpacing.md,
+                            ),
+                        itemCount: controller.watchlist.length,
+                        itemBuilder: (context, index) {
+                          final drama = controller.watchlist[index];
+                          return _WatchlistCard(
+                            drama: drama,
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              AdService.instance.showRewardedForScreen(
+                                'watchlist_screen',
+                                onRewarded: () {
+                                  _goToEpisodesSkipAd(homeController, drama);
+                                },
+                                onNotAvailable: () {
+                                  _goToEpisodesSkipAd(homeController, drama);
+                                },
+                              );
+                            },
+                            onRemove: () => controller.toggleWatchlist(drama),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }

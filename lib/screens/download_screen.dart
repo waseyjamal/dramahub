@@ -12,12 +12,6 @@ import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
 
-/// Download screen
-///
-/// Mirrors Blogger download page behavior:
-/// - Shows YouTube watch URL
-/// - Share via Snaptube (Android)
-/// - Open via 9xbuddy (PC / iPhone)
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key});
 
@@ -36,7 +30,6 @@ class _DownloadScreenState extends State<DownloadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 3.1 — Safe cast with null check (was hard cast — crashed if arguments null/wrong type)
     final args = Get.arguments as Map<String, dynamic>?;
     if (args == null || args['episode'] == null || args['watchUrl'] == null) {
       return Scaffold(
@@ -78,15 +71,10 @@ class _DownloadScreenState extends State<DownloadScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: AppSpacing.xxl),
-
                 _HeroIconSection(),
-
                 const SizedBox(height: AppSpacing.xl),
-
                 _DownloadCard(episode: episode, watchUrl: watchUrl),
-
                 const SizedBox(height: AppSpacing.xl),
-
                 OutlinedButton(
                   onPressed: () => Get.back(),
                   style: OutlinedButton.styleFrom(
@@ -108,7 +96,6 @@ class _DownloadScreenState extends State<DownloadScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: AppSpacing.xl),
               ],
             ),
@@ -119,7 +106,6 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 }
 
-/// Hero icon section with title
 class _HeroIconSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -155,7 +141,6 @@ class _HeroIconSection extends StatelessWidget {
   }
 }
 
-/// Download card with URL display and action buttons
 class _DownloadCard extends StatelessWidget {
   final EpisodeModel episode;
   final String watchUrl;
@@ -189,16 +174,12 @@ class _DownloadCard extends StatelessWidget {
             style: AppTypography.body.copyWith(color: AppColors.goldAccent),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: AppSpacing.xl),
-
           Text(
             'Download Link',
             style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.sm),
-
-          // URL container — tap to copy
           GestureDetector(
             onTap: () {
               Clipboard.setData(ClipboardData(text: watchUrl));
@@ -238,10 +219,7 @@ class _DownloadCard extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: AppSpacing.xl),
-
-          // Button 1: Snaptube
           ElevatedButton(
             onPressed: () {
               HapticFeedback.mediumImpact();
@@ -266,10 +244,7 @@ class _DownloadCard extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: AppSpacing.xl),
-
-          // Instructions note
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -307,10 +282,7 @@ class _DownloadCard extends StatelessWidget {
       parameters: {'method': 'snaptube', 'episode_title': episode.title},
     );
     await SharePlus.instance.share(
-      ShareParams(
-        text: url,
-        subject: '${episode.title} - Download',
-      ),
+      ShareParams(text: url, subject: '${episode.title} - Download'),
     );
   }
 }

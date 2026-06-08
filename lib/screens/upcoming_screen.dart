@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
-import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
@@ -263,50 +262,7 @@ class _CTASection extends StatelessWidget {
       child: Column(
         children: [
           // Premium CTA title
-          Text(
-            '💎 Want to Watch Now?',
-            style: AppTypography.title.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Premium button
-          ElevatedButton(
-            onPressed: () {
-              Get.toNamed(AppRoutes.premium);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondaryDark,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.medium),
-                side: const BorderSide(color: AppColors.softGrey, width: 1),
-              ),
-            ),
-            child: Text(
-              '⚡ Abhi Episode ${controller.episode.episodeNumber} dekhein (Instant Access)',
-              style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-
-          // Divider
-          Container(
-            height: 1,
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(vertical: 18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  AppColors.white.withValues(alpha: 0.08),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
+          
 
           // Telegram CTA title
           Text(

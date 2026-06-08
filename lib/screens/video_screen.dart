@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:better_player_plus/better_player_plus.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
 import 'package:drama_hub/services/vast_ad_service.dart';
 import 'package:video_player/video_player.dart';
@@ -21,6 +25,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
+import 'package:drama_hub/services/download_service.dart';
+import 'package:drama_hub/utils/app_snackbar.dart';
+import 'package:drama_hub/models/download_model.dart';
+import 'package:drama_hub/screens/downloads_screen.dart';
 
 class VideoScreen extends StatefulWidget {
   const VideoScreen({super.key});
@@ -50,6 +58,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   final RxBool _hlsLoading = false.obs;
 
   late final VideoController controller;
+  int _lastSavedSecond = 0;
 
   @override
   void initState() {
@@ -68,6 +77,8 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     _betterPlayerController?.pause();
     _betterPlayerController?.dispose();
     _betterPlayerControllerObs.value = null;
+    WakelockPlus.disable();
+    _autoSaveProgress();
     super.dispose();
   }
 
@@ -81,6 +92,26 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openOfflinePlayer(dynamic episode) async {
+    final playbackPath =
+        await DownloadService.instance.getPlaybackPath(episode.episodeId);
+    if (!mounted) return;
+    if (playbackPath == null) {
+      AppSnackbar.error(
+        'Playback Failed',
+        'File corrupted or missing. Please re-download.',
+      );
+      return;
+    }
+    Get.to(
+      () => OfflinePlayerScreen(
+        episode: episode,
+        filePath: playbackPath,
+      ),
+      transition: Transition.downToUp,
+    );
+  }
+
   Future<void> _initializePlayer() async {
     // Prevent double tap
     if (_isInitializing) return;
@@ -90,6 +121,25 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     try {
       controller.hasVideoError.value = false;
 
+      // ✅ Check if episode is downloaded — play offline instead of streaming
+      if (controller.isCustomPlayer.value) {
+        final episodeId = controller.episode.id;
+        final downloadService = DownloadService.instance;
+        if (downloadService.isDownloaded(episodeId)) {
+          _isInitializing = false;
+          final episode = downloadService.getDownload(episodeId)!;
+          final offlineCfg = AdConfigService.instance.offlineAds;
+          final isMature = episode.isAdMature(offlineCfg.maturityMinutes);
+          if (isMature) {
+            await AdService.instance.showOfflineAd(
+              onComplete: () => _openOfflinePlayer(episode),
+            );
+          } else {
+            await _openOfflinePlayer(episode);
+          }
+          return;
+        }
+      }
 
       if (controller.isCustomPlayer.value) {
         if (controller.streamUrl.value.isEmpty) return;
@@ -153,7 +203,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
                 final url = request.url;
                 if (url == 'about:blank' ||
                     url.startsWith('https://www.youtube.com/embed/') ||
-                    url.startsWith('https://drama-hubs.blogspot.com')) {
+                    url.startsWith('https://dramahubs.stream/')) {
                   return NavigationDecision.navigate;
                 }
                 launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -161,7 +211,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
               },
             ),
           )
-          ..loadHtmlString(html, baseUrl: 'https://drama-hubs.blogspot.com');
+          ..loadHtmlString(html, baseUrl: 'https://dramahubs.stream/');
         setState(() {
           _webViewController = webController;
           controller.isPlayerInitialized.value = true;
@@ -237,7 +287,9 @@ body { width:100vw; height:100vh; overflow:hidden; }
     _showSkipButton.value = false;
     vc?.pause();
     vc?.dispose();
-    _startHlsPlayer();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _startHlsPlayer();
+    });
   }
 
   void _finishVastAd() {
@@ -251,41 +303,136 @@ body { width:100vw; height:100vh; overflow:hidden; }
     _showSkipButton.value = false;
     vc?.pause();
     vc?.dispose();
-    _startHlsPlayer();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _startHlsPlayer();
+    });
+  }
+
+  Future<void> _restoreWatchProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt('progress_${controller.episode.id}');
+      if (saved == null || saved < 10) return;
+      final duration =
+          _betterPlayerController?.videoPlayerController?.value.duration;
+      if (duration != null && saved > duration.inSeconds - 60) return;
+      await _betterPlayerController?.seekTo(Duration(seconds: saved));
+      if (kDebugMode) {
+        debugPrint(
+            'Progress restored: ${saved}s for ${controller.episode.id}');
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Progress restore error: $e');
+    }
+  }
+
+  void _autoSaveProgress() {
+    try {
+      final pos =
+          _betterPlayerController?.videoPlayerController?.value.position;
+      if (pos == null) return;
+      final currentSecond = pos.inSeconds;
+      if (currentSecond - _lastSavedSecond < 10) return;
+      _lastSavedSecond = currentSecond;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setInt('progress_${controller.episode.id}', currentSecond);
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _clearWatchProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('progress_${controller.episode.id}');
+    } catch (_) {}
+  }
+
+  Future<void> _handlePlayerError() async {
+    try {
+      _hlsLoading.value = false;
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        controller.errorMessage.value =
+            'No internet. Check your connection and retry.';
+      } else {
+        controller.errorMessage.value =
+            'Stream unavailable. Try again or check back later.';
+      }
+      controller.hasVideoError.value = true;
+      if (kDebugMode) debugPrint('BetterPlayer error occurred');
+    } catch (_) {
+      controller.hasVideoError.value = true;
+    }
+  }
+
+  Future<void> _savePlaybackSpeed() async {
+    try {
+      final speed =
+          _betterPlayerController?.videoPlayerController?.value.speed;
+      if (speed == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('playback_speed', speed);
+    } catch (_) {}
+  }
+
+  Future<void> _loadPlaybackSpeed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final speed = prefs.getDouble('playback_speed') ?? 1.0;
+      if (speed != 1.0) {
+        await _betterPlayerController?.setSpeed(speed);
+      }
+    } catch (_) {}
   }
 
   void _startHlsPlayer() {
-    // Dispose previous instance
     _betterPlayerController?.pause();
     _betterPlayerController?.dispose();
     _betterPlayerController = null;
     _betterPlayerControllerObs.value = null;
-
-    // Show loading while HLS initializes
     _hlsLoading.value = true;
+    _lastSavedSecond = 0;
+
+    // ✅ MP4 takes priority over HLS when available
+    final isMp4 = controller.episode.usesMp4;
+    final videoUrl = isMp4
+        ? controller.episode.mp4Url
+        : controller.streamUrl.value;
 
     final dataSource = BetterPlayerDataSource(
       BetterPlayerDataSourceType.network,
-      controller.streamUrl.value,
-      videoFormat: BetterPlayerVideoFormat.hls,
+      videoUrl,
+      videoFormat: isMp4
+          ? BetterPlayerVideoFormat.other
+          : BetterPlayerVideoFormat.hls,
       cacheConfiguration: const BetterPlayerCacheConfiguration(
         useCache: true,
-        maxCacheSize: 200 * 1024 * 1024,
-        maxCacheFileSize: 50 * 1024 * 1024,
+        maxCacheSize: 500 * 1024 * 1024,
+        maxCacheFileSize: 100 * 1024 * 1024,
       ),
       bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-        minBufferMs: 10000,
-        maxBufferMs: 30000,
+        minBufferMs: 20000,
+        maxBufferMs: 60000,
         bufferForPlaybackMs: 2500,
         bufferForPlaybackAfterRebufferMs: 5000,
       ),
     );
+
     final config = BetterPlayerConfiguration(
       autoPlay: true,
       looping: false,
       fullScreenByDefault: false,
-      allowedScreenSleep: false,
+      allowedScreenSleep: true,
       fit: BoxFit.contain,
+      autoDetectFullscreenDeviceOrientation: false,
+      autoDetectFullscreenAspectRatio: true,
+      deviceOrientationsOnFullScreen: const [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ],
+      deviceOrientationsAfterFullScreen: const [
+        DeviceOrientation.portraitUp,
+      ],
       controlsConfiguration: const BetterPlayerControlsConfiguration(
         enablePlayPause: true,
         enableSkips: true,
@@ -294,6 +441,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
         enablePlaybackSpeed: true,
         enableAudioTracks: true,
         enableQualities: true,
+        enableSubtitles: true,
         forwardSkipTimeInMilliseconds: 10000,
         backwardSkipTimeInMilliseconds: 10000,
         progressBarPlayedColor: Color(0xFFE50914),
@@ -301,25 +449,59 @@ body { width:100vw; height:100vh; overflow:hidden; }
         loadingColor: Color(0xFFE50914),
         overflowMenuIconsColor: Colors.white,
         iconsColor: Colors.white,
+        controlBarColor: Colors.transparent,
       ),
       eventListener: (event) {
         if (!mounted) return;
         try {
-          if (event.betterPlayerEventType ==
-              BetterPlayerEventType.initialized) {
-            controller.isVideoLoading.value = false;
-            _hlsLoading.value = false;
-            FirebaseAnalytics.instance.logEvent(
-              name: 'video_played',
-              parameters: {
-                'episode_title': controller.episode.title,
-                'episode_number': controller.episode.episodeNumber,
-              },
-            );
-          }
-          if (event.betterPlayerEventType == BetterPlayerEventType.exception) {
-            controller.hasVideoError.value = true;
-            _hlsLoading.value = false;
+          switch (event.betterPlayerEventType) {
+            case BetterPlayerEventType.initialized:
+              controller.isVideoLoading.value = false;
+              _hlsLoading.value = false;
+              _restoreWatchProgress();
+              _loadPlaybackSpeed();
+              FirebaseAnalytics.instance.logEvent(
+                name: 'video_played',
+                parameters: {
+                  'episode_title': controller.episode.title,
+                  'episode_number': controller.episode.episodeNumber,
+                  'player_type': 'custom_hls',
+                },
+              );
+              break;
+            case BetterPlayerEventType.openFullscreen:
+              SystemChrome.setPreferredOrientations([
+                DeviceOrientation.landscapeLeft,
+                DeviceOrientation.landscapeRight,
+              ]);
+              break;
+            case BetterPlayerEventType.hideFullscreen:
+              SystemChrome.setPreferredOrientations([
+                DeviceOrientation.portraitUp,
+              ]);
+              break;
+            case BetterPlayerEventType.play:
+              WakelockPlus.enable();
+              break;
+            case BetterPlayerEventType.pause:
+              WakelockPlus.disable();
+              _autoSaveProgress();
+              break;
+            case BetterPlayerEventType.finished:
+              WakelockPlus.disable();
+              _clearWatchProgress();
+              break;
+            case BetterPlayerEventType.progress:
+              _autoSaveProgress();
+              break;
+            case BetterPlayerEventType.setSpeed:
+              _savePlaybackSpeed();
+              break;
+            case BetterPlayerEventType.exception:
+              _handlePlayerError();
+              break;
+            default:
+              break;
           }
         } catch (_) {}
       },
@@ -687,10 +869,13 @@ class _ThumbnailPlayer extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Tap to retry',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
-                        ),
+                        Obx(() => Text(
+                          controller.errorMessage.value.isNotEmpty
+                              ? controller.errorMessage.value
+                              : 'Tap to retry',
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          textAlign: TextAlign.center,
+                        )),
                       ],
                     )
                   : _AnimatedPlayButton(onTap: () {
@@ -726,10 +911,117 @@ class _DownloadSection extends StatelessWidget {
   final VideoController controller;
   const _DownloadSection({required this.controller});
 
+  Future<void> _playOffline(
+    BuildContext context,
+    String episodeId,
+    DownloadService downloadService,
+  ) async {
+    final episode = downloadService.getDownload(episodeId);
+    if (episode == null) return;
+
+    final offlineCfg = AdConfigService.instance.offlineAds;
+    final isMature = episode.isAdMature(offlineCfg.maturityMinutes);
+
+    if (isMature) {
+      await AdService.instance.showOfflineAd(
+        onComplete: () => _navigateToOfflinePlayer(episode),
+      );
+    } else {
+      await _navigateToOfflinePlayer(episode);
+    }
+  }
+
+  Future<void> _navigateToOfflinePlayer(dynamic episode) async {
+    final playbackPath =
+        await DownloadService.instance.getPlaybackPath(episode.episodeId);
+
+    if (playbackPath == null) {
+      AppSnackbar.error(
+        'Playback Failed',
+        'File corrupted or missing. Please re-download.',
+      );
+      return;
+    }
+
+    Get.to(
+      () => OfflinePlayerScreen(
+        episode: episode,
+        filePath: playbackPath,
+      ),
+      transition: Transition.downToUp,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ✅ YouTube episodes — Snaptube download flow (completely untouched)
+    if (!controller.isCustomPlayer.value) {
+      if (controller.episode.videoId.isEmpty) return const SizedBox.shrink();
+      return Obx(() => Container(
+            decoration: BoxDecoration(
+              color: AppColors.secondaryDark,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+            ),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Download Episode', style: AppTypography.title),
+                const SizedBox(height: AppSpacing.md),
+                ElevatedButton.icon(
+                  onPressed: controller.isDownloadLoading.value
+                      ? null
+                      : controller.goToYoutubeDownload,
+                  icon: controller.isDownloadLoading.value
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white70,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.download_rounded),
+                  label: Text(
+                    controller.isDownloadLoading.value
+                        ? 'Loading...'
+                        : 'Free Download',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.lg,
+                      // ✅ FIX — horizontal padding added so text is not cramped
+                      horizontal: AppSpacing.lg,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Download opens in external app.',
+                  style: AppTypography.caption
+                      .copyWith(color: AppColors.softGrey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ));
+    }
+
+    // ✅ Custom player episodes — MP4 in-app download
+    if (!controller.episode.hasDownload) return const SizedBox.shrink();
+
+    final downloadService = DownloadService.instance;
+    final episodeId = controller.episode.id;
+
     return Obx(() {
-      if (controller.isCustomPlayer.value) return const SizedBox.shrink();
+      final isDownloaded = downloadService.isDownloaded(episodeId);
+      final isDownloading = downloadService.isDownloading(episodeId);
+      final progress = downloadService.getProgress(episodeId);
+      final activeDownload = downloadService.activeDownloads[episodeId];
+      final isPaused = activeDownload?.status == DownloadStatus.paused;
+
       return Container(
         decoration: BoxDecoration(
           color: AppColors.secondaryDark,
@@ -741,37 +1033,132 @@ class _DownloadSection extends StatelessWidget {
           children: [
             Text('Download Episode', style: AppTypography.title),
             const SizedBox(height: AppSpacing.md),
-            ElevatedButton.icon(
-              onPressed: controller.isDownloadLoading.value
-                  ? null
-                  : controller.goToDownload,
-              icon: controller.isDownloadLoading.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white70,
+
+            if (isDownloading) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor:
+                      AppColors.softGrey.withValues(alpha: 0.2),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primaryRed),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              // ✅ FIX — shows percentage on left, MB progress on right
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isPaused
+                        ? 'Paused — ${(progress * 100).toStringAsFixed(0)}%'
+                        : 'Downloading — ${(progress * 100).toStringAsFixed(0)}%',
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.softGrey),
+                  ),
+                  if (activeDownload?.mbProgressText.isNotEmpty == true)
+                    Text(
+                      activeDownload!.mbProgressText,
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.softGrey),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        if (isPaused) {
+                          downloadService.resumeDownload(episodeId);
+                        } else {
+                          downloadService.pauseDownload(episodeId);
+                        }
+                      },
+                      icon: Icon(isPaused
+                          ? Icons.play_arrow_rounded
+                          : Icons.pause_rounded),
+                      label: Text(isPaused ? 'Resume' : 'Pause'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
+                          // ✅ FIX — horizontal padding
+                          horizontal: AppSpacing.lg,
                         ),
                       ),
-                    )
-                  : const Icon(Icons.download_rounded),
-              label: Text(
-                controller.isDownloadLoading.value
-                    ? 'Loading...'
-                    : 'Free Download',
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        downloadService.cancelDownload(episodeId),
+                    icon: const Icon(Icons.cancel_rounded),
+                    label: const Text('Cancel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade800,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                        // ✅ FIX — horizontal padding so Cancel text is not cramped
+                        horizontal: AppSpacing.lg,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            ],
+
+            if (isDownloaded && !isDownloading)
+              ElevatedButton.icon(
+                onPressed: () => _playOffline(context, episodeId, downloadService),
+                icon: const Icon(Icons.play_circle_rounded,
+                    color: AppColors.goldAccent),
+                label: Text(
+                  'Play Offline',
+                  style: AppTypography.button
+                      .copyWith(color: AppColors.goldAccent),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      AppColors.goldAccent.withValues(alpha: 0.15),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.lg,
+                    horizontal: AppSpacing.lg,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Download opens in external browser.',
-              style: AppTypography.caption.copyWith(color: AppColors.softGrey),
-              textAlign: TextAlign.center,
-            ),
+
+            if (!isDownloaded && !isDownloading)
+              Obx(() => ElevatedButton.icon(
+                    onPressed: controller.isDownloadLoading.value
+                        ? null
+                        : controller.goToDownload,
+                    icon: controller.isDownloadLoading.value
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white70),
+                            ),
+                          )
+                        : const Icon(Icons.download_rounded),
+                    label: Text(
+                      controller.isDownloadLoading.value
+                          ? 'Loading...'
+                          : 'Download for Offline',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.lg,
+                        // ✅ FIX — horizontal padding
+                        horizontal: AppSpacing.lg,
+                      ),
+                    ),
+                  )),
           ],
         ),
       );

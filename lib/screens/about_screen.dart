@@ -141,7 +141,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 _SocialButton(
                   icon: Icons.camera_alt_rounded,
                   label: 'Instagram',
-                  subtitle: '@arafta_hindi',
+                  subtitle: '@dramas_hubs',
                   color: const Color(0xFFE1306C),
                   onTap: () => _launch(AppUrls.instagram),
                 ),
@@ -149,7 +149,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 _SocialButton(
                   icon: Icons.language_rounded,
                   label: 'Website',
-                  subtitle: 'drama-hubs.blogspot.com',
+                  subtitle: 'dramahubs.stream',
                   color: AppColors.primaryRed,
                   onTap: () => _launch(AppUrls.website),
                 ),

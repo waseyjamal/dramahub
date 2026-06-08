@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
+import 'package:drama_hub/services/download_service.dart';
 import 'package:drama_hub/services/video_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
@@ -28,6 +29,7 @@ class VideoController extends GetxController {
   // true  = show WebView player
   final RxBool isPlayerInitialized = false.obs;
   final RxBool hasVideoError = false.obs;
+  final RxString errorMessage = ''.obs;
   final RxBool isCustomPlayer = false.obs;
   final RxString streamUrl = ''.obs;
 
@@ -51,7 +53,10 @@ class VideoController extends GetxController {
     if (args is EpisodeModel) {
       episode = args;
       isCustomPlayer.value = episode.isCustomPlayer;
-      streamUrl.value = episode.streamUrl;
+      // ✅ MP4 takes priority over HLS
+      streamUrl.value = episode.usesMp4 
+          ? episode.mp4Url 
+          : episode.streamUrl;
       dramaTitle = '';
       dramaBanner = '';
     } else if (args is Map) {
@@ -62,7 +67,10 @@ class VideoController extends GetxController {
       }
       episode = ep;
       isCustomPlayer.value = episode.isCustomPlayer;
-      streamUrl.value = episode.streamUrl;
+      // ✅ MP4 takes priority over HLS
+      streamUrl.value = episode.usesMp4 
+          ? episode.mp4Url 
+          : episode.streamUrl;
       dramaTitle = args['dramaTitle'] ?? '';
       dramaBanner = args['dramaBanner'] ?? '';
     } else {
@@ -157,9 +165,52 @@ class VideoController extends GetxController {
     );
   }
 
-  /// Navigates to download screen
-  /// Shows rewarded ad first if enabled in config, then goes to DownloadScreen
+  /// Starts download directly — no screen redirect
   Future<void> goToDownload() async {
+    if (isDownloadLoading.value) return;
+
+    if (!episode.hasDownload) {
+      AppSnackbar.error(
+        'Download Unavailable',
+        'Download link for this episode is not available yet.',
+      );
+      return;
+    }
+
+    try {
+      isDownloadLoading.value = true;
+
+      await _adService.showRewardedForDownload(
+        onRewarded: () async {
+          final success = await DownloadService.instance.startDownload(
+            episode: episode,
+            dramaTitle: dramaTitle,
+            mp4Url: episode.mp4Url,
+          );
+          if (!success) {
+            AppSnackbar.error(
+              'Download Failed',
+              'Could not start download. Please try again.',
+            );
+          }
+        },
+        onNotAvailable: () async {
+          await DownloadService.instance.startDownload(
+            episode: episode,
+            dramaTitle: dramaTitle,
+            mp4Url: episode.mp4Url,
+          );
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('Download error: $e');
+    } finally {
+      isDownloadLoading.value = false;
+    }
+  }
+
+  /// Navigates to download screen for YouTube episodes (Snaptube flow)
+  Future<void> goToYoutubeDownload() async {
     if (isDownloadLoading.value) return;
 
     if (episode.watchUrl.isEmpty) {
@@ -173,8 +224,7 @@ class VideoController extends GetxController {
     try {
       isDownloadLoading.value = true;
 
-      await _adService.showRewardedForScreen(
-        'video_screen',
+      await _adService.showRewardedForDownload(
         onRewarded: () {
           Get.toNamed(
             AppRoutes.download,
@@ -182,7 +232,6 @@ class VideoController extends GetxController {
           );
         },
         onNotAvailable: () {
-          // Rewarded not available or disabled — go directly
           Get.toNamed(
             AppRoutes.download,
             arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
@@ -190,10 +239,7 @@ class VideoController extends GetxController {
         },
       );
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Download ad error: $e');
-      }
-      // On any error — go directly, never block user
+      if (kDebugMode) debugPrint('YouTube download error: $e');
       Get.toNamed(
         AppRoutes.download,
         arguments: {'episode': episode, 'watchUrl': episode.watchUrl},

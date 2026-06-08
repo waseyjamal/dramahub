@@ -1,32 +1,23 @@
-/// Model class for Episode
 class EpisodeModel {
   final String id;
   final String dramaId;
   final int episodeNumber;
   final String title;
   final String description;
-
-  /// Raw YouTube video ID (e.g. iu7akrHmEsk)
   final String videoId;
-
-  /// Embed URL built internally from videoId — used by WebView player
   final String videoUrl;
-
-  /// Watch URL built internally from videoId — used for Snaptube download
   final String watchUrl;
-
   final String downloadUrl;
   final String thumbnailUrl;
   final String thumbnailImage;
   final int durationMinutes;
   final DateTime releaseDate;
   final bool isPremium;
-
-  /// Player type: 'youtube' or 'custom' — defaults to 'youtube' if missing
   final String playerType;
-
-  /// HLS stream URL for custom player (e.g. from B2/Cloudflare)
   final String streamUrl;
+
+  // ✅ NEW — direct MP4 URL for streaming and in-app download
+  final String mp4Url;
 
   EpisodeModel({
     required this.id,
@@ -43,6 +34,7 @@ class EpisodeModel {
     this.isPremium = false,
     this.playerType = 'youtube',
     this.streamUrl = '',
+    this.mp4Url = '',
   }) : videoUrl = videoId.isNotEmpty
            ? 'https://www.youtube.com/embed/$videoId?autoplay=0&rel=0&modestbranding=1&playsinline=1'
            : '',
@@ -51,25 +43,22 @@ class EpisodeModel {
            : '',
        thumbnailImage = thumbnailImage ?? thumbnailUrl;
 
-  /// Computed getter: Episode is upcoming if release date is in the future
   bool get isUpcoming => DateTime.now().isBefore(releaseDate);
-
-  /// Computed getter: Episode is released if not upcoming
   bool get isReleased => !isUpcoming;
-
-  /// True if this episode uses the custom HLS player
   bool get isCustomPlayer => playerType == 'custom';
 
-  /// Computed getter: Episode is new if released within last 24 hours
+  // ✅ True when mp4Url is available — controls download button visibility
+  bool get hasDownload => mp4Url.isNotEmpty;
+
+  // ✅ MP4 takes priority over HLS when both exist
+  bool get usesMp4 => mp4Url.isNotEmpty;
+
   bool get isNew {
     final difference = DateTime.now().difference(releaseDate);
     return difference.inHours >= 0 && difference.inHours <= 24;
   }
 
-  /// Convert from JSON
   factory EpisodeModel.fromJson(Map<String, dynamic> json) {
-    // ✅ D-1 — DateTime.parse wrapped in try-catch
-    // Previously: one malformed date string crashed entire episode list parse
     DateTime parsedReleaseDate;
     try {
       parsedReleaseDate = json['releaseDate'] != null
@@ -94,10 +83,10 @@ class EpisodeModel {
       isPremium: json['isPremium'] ?? false,
       playerType: json['playerType'] ?? 'youtube',
       streamUrl: json['streamUrl'] ?? '',
+      mp4Url: json['mp4Url'] ?? '',
     );
   }
 
-  /// Convert to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -114,6 +103,7 @@ class EpisodeModel {
       'isPremium': isPremium,
       'playerType': playerType,
       'streamUrl': streamUrl,
+      'mp4Url': mp4Url,
     };
   }
 }

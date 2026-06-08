@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
 import 'package:flutter/material.dart';
 import 'package:drama_hub/services/cas_service.dart';
+import 'package:drama_hub/services/download_service.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -46,6 +47,9 @@ Future<void> main() async {
   // Register CasService early so it can start initializing during splash
   Get.put(CasService(), permanent: true);
 
+  // ✅ Register DownloadService
+  Get.put(DownloadService(), permanent: true);
+
   await Future.wait([
     AppConfigService.instance.loadConfig().timeout(
       const Duration(seconds: 3),
@@ -62,6 +66,9 @@ Future<void> main() async {
       },
     ),
   ]);
+
+  // ✅ Initialize download service
+  await DownloadService.instance.init();
 
   // ✅ Remove splash — app is ready to show
   FlutterNativeSplash.remove();
@@ -205,13 +212,7 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
     _showForceUpdateDialog();
   }
 
-  Future<void> _launchPlayStore() async {
-    if (!AppUrls.isSafeUrl(AppUrls.playStore)) return;
-    await launchUrl(
-      Uri.parse(AppUrls.playStore),
-      mode: LaunchMode.externalApplication,
-    );
-  }
+  
 
   void _showForceUpdateDialog() {
     final fallback = AppConfigService.instance.config.fallbackUpdate;
@@ -261,25 +262,34 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
               ),
               const SizedBox(height: 24),
 
-              // ── Primary: Play Store (always shown) ──
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _launchPlayStore,
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text(
-                    'Update on Play Store',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryRed,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              // ── Play Store button ──
+              // Shows if enabled OR if all options are disabled (safety fallback)
+              if (fallback.playstoreEnabled || !fallback.hasAtLeastOneOption)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final url = fallback.playstoreUrl;
+                      if (!AppUrls.isSafeUrl(url)) return;
+                      await launchUrl(
+                        Uri.parse(url),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text(
+                      'Update on Play Store',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryRed,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               // ── Fallback A: Telegram (admin controlled) ──
               if (fallback.telegramEnabled) ...[

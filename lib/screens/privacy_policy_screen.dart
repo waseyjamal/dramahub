@@ -125,7 +125,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       'If you have any questions about this privacy policy, '
                       'please contact us through our Telegram channel or website:\n\n'
                       '📱 Telegram: t.me/araftahindisub\n'
-                      '🌐 Website: drama-hubs.blogspot.com',
+                      '🌐 Website: dramahubs.stream',
                 ),
 
                 const SizedBox(height: AppSpacing.xl),

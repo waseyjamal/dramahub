@@ -233,7 +233,10 @@ class CasService extends GetxService {
       shown.complete(false);
     };
     _casInterstitial!.show();
-    return shown.future;
+    return shown.future.timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => false,
+    );
   }
 
   /// Called from AdService waterfall — CAS rewarded fallback
@@ -243,14 +246,12 @@ class CasService extends GetxService {
   }) async {
     if (!_casInitialized) return false;
     if (_casRewarded == null) {
-      onNotAvailable?.call();
       return false;
     }
     if (!_rewardedAdLoaded) {
       if (kDebugMode) {
         debugPrint('ℹ️ CAS Rewarded not ready');
       }
-      onNotAvailable?.call();
       return false;
     }
     bool rewardGranted = false;

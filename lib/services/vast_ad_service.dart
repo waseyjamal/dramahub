@@ -68,7 +68,22 @@ class VastAdService extends GetxService {
 
   /// Tries each waterfall entry in priority order
   /// Returns first successful VastAdResult or empty on all fail
+  /// Hard-capped at 8 seconds total — prevents multi-redirect stalls
   Future<VastAdResult> fetchAd() async {
+    try {
+      return await _fetchAdInternal().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          if (kDebugMode) { debugPrint('VastAdService: total timeout — skipping ad'); }
+          return VastAdResult.empty();
+        },
+      );
+    } catch (_) {
+      return VastAdResult.empty();
+    }
+  }
+
+  Future<VastAdResult> _fetchAdInternal() async {
     final waterfall = _config.activeWaterfall;
 
     for (final entry in waterfall) {
@@ -139,8 +154,8 @@ class VastAdService extends GetxService {
     final mp4Url =
         cdataMatch?.group(1)?.trim() ?? plainMatch?.group(1)?.trim() ?? '';
 
-    if (mp4Url.isEmpty) {
-      if (kDebugMode) { debugPrint('VastAdService: no MP4 found in VAST from $network'); }
+    if (mp4Url.isEmpty || !mp4Url.startsWith('https://')) {
+      if (kDebugMode) { debugPrint('VastAdService: rejected unsafe or missing MP4 URL from $network: $mp4Url'); }
       return VastAdResult.empty();
     }
 

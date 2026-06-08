@@ -410,31 +410,34 @@ class HomeController extends GetxController {
                 ),
               ),
 
-            // ── Primary: Play Store (always shown) ──
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  if (!AppUrls.isSafeUrl(AppUrls.playStore)) return;
-                  await launchUrl(
-                    Uri.parse(AppUrls.playStore),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
-                icon: const Icon(Icons.download_rounded),
-                label: const Text(
-                  'Update on Play Store',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            // ── Play Store button ──
+            // Shows if enabled OR if all options are disabled (safety fallback)
+            if (fallback.playstoreEnabled || !fallback.hasAtLeastOneOption)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final url = fallback.playstoreUrl;
+                    if (!AppUrls.isSafeUrl(url)) return;
+                    await launchUrl(
+                      Uri.parse(url),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text(
+                    'Update on Play Store',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-            ),
 
             // ── Fallback A: Telegram (admin controlled) ──
             if (fallback.telegramEnabled) ...[

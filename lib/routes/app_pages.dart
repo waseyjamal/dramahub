@@ -17,6 +17,7 @@ import 'package:drama_hub/screens/onboarding_screen.dart';
 import 'package:drama_hub/screens/watchlist_screen.dart';
 import 'package:drama_hub/screens/report_problem_screen.dart';
 import 'package:drama_hub/screens/suggest_drama_screen.dart';
+import 'package:drama_hub/screens/downloads_screen.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
 
 /// Application pages configuration
@@ -81,6 +82,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.suggestDrama,
       page: () => const SuggestDramaScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.downloads,
+      page: () => const DownloadsScreen(),
     ),
   ];
 }

@@ -11,6 +11,8 @@ import 'package:drama_hub/controllers/watchlist_controller.dart';
 import 'package:drama_hub/utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/routes/app_routes.dart';
+import 'package:drama_hub/screens/downloads_screen.dart';
+import 'package:drama_hub/services/download_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -37,6 +39,7 @@ class _MainScreenState extends State<MainScreen> {
     _screens = [
       const HomeScreen(),
       WatchlistScreen(onBrowseTapped: () => setState(() => _currentIndex = 0)),
+      const DownloadsScreen(),
       const HistoryScreen(),
       const ProfileScreen(),
     ];
@@ -48,7 +51,6 @@ class _MainScreenState extends State<MainScreen> {
     final prefs = await SharedPreferences.getInstance();
     final done = prefs.getBool(StorageKeys.onboardingDone) ?? false;
     // ✅ W-5 — mounted check after async gap
-    // Previously: could navigate after widget disposed during await
     if (!done && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.toNamed(AppRoutes.onboarding);
@@ -69,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
           AdService.instance.showInterstitialForScreen('watchlist_screen');
         });
         break;
-      case 2:
+      case 3:
         Future.delayed(const Duration(seconds: 1), () {
           AdService.instance.showInterstitialForScreen('history_screen');
         });
@@ -91,8 +93,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
-        // ✅ Removed const from BottomNavigationBar because
-        // Watchlist item uses Obx which cannot be const
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: _onTabTapped,
@@ -110,7 +110,6 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.home_rounded),
               label: 'Home',
             ),
-            // ✅ #7 — Watchlist badge showing count
             BottomNavigationBarItem(
               icon: Obx(() {
                 final count = _watchlistController.watchlist.length;
@@ -122,6 +121,19 @@ class _MainScreenState extends State<MainScreen> {
                 );
               }),
               label: 'Watchlist',
+            ),
+            BottomNavigationBarItem(
+              icon: Obx(() {
+                final count = DownloadService.instance.downloadCount.value;
+                return Badge(
+                  label: Text('$count'),
+                  isLabelVisible: count > 0,
+                  // ✅ FIX — was Colors.green, now matches app brand color
+                  backgroundColor: AppColors.primaryRed,
+                  child: const Icon(Icons.download_for_offline_rounded),
+                );
+              }),
+              label: 'Downloads',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.history_rounded),

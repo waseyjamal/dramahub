@@ -118,14 +118,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.camera_alt_rounded,
                   iconColor: const Color(0xFFE1306C),
                   title: 'Instagram',
-                  subtitle: '@arafta_hindi',
+                  subtitle: '@dramas_hubs',
                   onTap: () => _launch(AppUrls.instagram),
                 ),
                 _ProfileTile(
                   icon: Icons.language_rounded,
                   iconColor: AppColors.primaryRed,
                   title: 'Website',
-                  subtitle: 'drama-hubs.blogspot.com',
+                  subtitle: 'dramahubs.stream',
                   onTap: () => _launch(AppUrls.website),
                 ),
 

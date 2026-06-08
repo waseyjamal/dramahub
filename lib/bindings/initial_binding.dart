@@ -26,5 +26,7 @@ class InitialBinding extends Bindings {
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
     Get.lazyPut<WatchlistController>(() => WatchlistController(), fenix: true);
     Get.lazyPut<HistoryController>(() => HistoryController(), fenix: true);
+    // ✅ DownloadService already registered in main.dart
+    // No need to register again here
   }
 }
