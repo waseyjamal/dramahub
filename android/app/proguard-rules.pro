@@ -52,7 +52,7 @@
 -keep class com.vungle.** { *; }
 -dontwarn com.vungle.**
 
-# ExoPlayer / Better Player Plus
+# ExoPlayer (used by video_player package)
 -keep class com.google.android.exoplayer2.** { *; }
 -keep interface com.google.android.exoplayer2.** { *; }
 -keep class com.google.android.exoplayer2.ext.** { *; }
@@ -117,3 +117,15 @@
 # Verve
 -dontwarn net.pubnative.**
 -keep class net.pubnative.** { *; }
+
+# volume_controller
+-keep class com.androidquery.** { *; }
+-dontwarn com.androidquery.**
+
+# screen_brightness
+-keep class com.aaassseee.screenbrightness.** { *; }
+-dontwarn com.aaassseee.screenbrightness.**
+
+# flutter_cache_manager / sqflite
+-keep class com.tekartik.sqflite.** { *; }
+-dontwarn com.tekartik.sqflite.**

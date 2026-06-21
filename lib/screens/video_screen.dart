@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:better_player_plus/better_player_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
 import 'package:drama_hub/services/vast_ad_service.dart';
 import 'package:video_player/video_player.dart';
+import 'package:drama_hub/widgets/custom_video_player.dart';
 import 'package:drama_hub/widgets/telegram_cta_button.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +39,7 @@ class VideoScreen extends StatefulWidget {
 
 class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   WebViewController? _webViewController;
-  BetterPlayerController? _betterPlayerController;
+  VideoPlayerController? _customPlayerController;
 
   // VAST ad state — all Rx so Obx tracks them
   final RxBool _vastPlaying = false.obs;
@@ -49,8 +49,8 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   final Rx<VideoPlayerController?> _vastController = Rx<VideoPlayerController?>(
     null,
   );
-  final Rx<BetterPlayerController?> _betterPlayerControllerObs =
-      Rx<BetterPlayerController?>(null);
+  final Rx<VideoPlayerController?> _customPlayerControllerObs =
+      Rx<VideoPlayerController?>(null);
 
   Timer? _vastTimer;
   Timer? _skipTimer;
@@ -74,9 +74,10 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     _skipTimer?.cancel();
     _vastController.value?.pause();
     _vastController.value?.dispose();
-    _betterPlayerController?.pause();
-    _betterPlayerController?.dispose();
-    _betterPlayerControllerObs.value = null;
+    _customPlayerController?.removeListener(_onCustomPlayerUpdate);
+    _customPlayerController?.pause();
+    _customPlayerController?.dispose();
+    _customPlayerControllerObs.value = null;
     WakelockPlus.disable();
     _autoSaveProgress();
     super.dispose();
@@ -88,7 +89,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _vastController.value?.pause();
-      _betterPlayerController?.pause();
+      _customPlayerController?.pause();
     }
   }
 
@@ -101,15 +102,26 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
         'Playback Failed',
         'File corrupted or missing. Please re-download.',
       );
+      controller.isPlayerInitialized.value = false;
+      _hlsLoading.value = false;
+      _isInitializing = false;
       return;
     }
-    Get.to(
+
+    await Get.to(
       () => OfflinePlayerScreen(
         episode: episode,
         filePath: playbackPath,
       ),
       transition: Transition.downToUp,
     );
+
+    // User pressed back — reset to thumbnail state
+    if (mounted) {
+      controller.isPlayerInitialized.value = false;
+      _hlsLoading.value = false;
+      _isInitializing = false;
+    }
   }
 
   Future<void> _initializePlayer() async {
@@ -117,6 +129,12 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     if (_isInitializing) return;
     if (controller.isPlayerInitialized.value) return;
     _isInitializing = true;
+
+    // ✅ Show loading spinner immediately — no dead-button feel
+    if (controller.isCustomPlayer.value) {
+      controller.isPlayerInitialized.value = true;
+      _hlsLoading.value = true;
+    }
 
     try {
       controller.hasVideoError.value = false;
@@ -313,10 +331,9 @@ body { width:100vw; height:100vh; overflow:hidden; }
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getInt('progress_${controller.episode.id}');
       if (saved == null || saved < 10) return;
-      final duration =
-          _betterPlayerController?.videoPlayerController?.value.duration;
+      final duration = _customPlayerController?.value.duration;
       if (duration != null && saved > duration.inSeconds - 60) return;
-      await _betterPlayerController?.seekTo(Duration(seconds: saved));
+      await _customPlayerController?.seekTo(Duration(seconds: saved));
       if (kDebugMode) {
         debugPrint(
             'Progress restored: ${saved}s for ${controller.episode.id}');
@@ -328,8 +345,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
 
   void _autoSaveProgress() {
     try {
-      final pos =
-          _betterPlayerController?.videoPlayerController?.value.position;
+      final pos = _customPlayerController?.value.position;
       if (pos == null) return;
       final currentSecond = pos.inSeconds;
       if (currentSecond - _lastSavedSecond < 10) return;
@@ -359,7 +375,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
             'Stream unavailable. Try again or check back later.';
       }
       controller.hasVideoError.value = true;
-      if (kDebugMode) debugPrint('BetterPlayer error occurred');
+      if (kDebugMode) debugPrint('Custom player error occurred');
     } catch (_) {
       controller.hasVideoError.value = true;
     }
@@ -367,8 +383,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
 
   Future<void> _savePlaybackSpeed() async {
     try {
-      final speed =
-          _betterPlayerController?.videoPlayerController?.value.speed;
+      final speed = _customPlayerController?.value.playbackSpeed;
       if (speed == null) return;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('playback_speed', speed);
@@ -380,18 +395,21 @@ body { width:100vw; height:100vh; overflow:hidden; }
       final prefs = await SharedPreferences.getInstance();
       final speed = prefs.getDouble('playback_speed') ?? 1.0;
       if (speed != 1.0) {
-        await _betterPlayerController?.setSpeed(speed);
+        await _customPlayerController?.setPlaybackSpeed(speed);
       }
     } catch (_) {}
   }
 
-  void _startHlsPlayer() {
-    _betterPlayerController?.pause();
-    _betterPlayerController?.dispose();
-    _betterPlayerController = null;
-    _betterPlayerControllerObs.value = null;
+  Future<void> _startHlsPlayer() async {
+    _customPlayerController?.removeListener(_onCustomPlayerUpdate);
+    _customPlayerController?.pause();
+    _customPlayerController?.dispose();
+    _customPlayerController = null;
+    _customPlayerControllerObs.value = null;
     _hlsLoading.value = true;
     _lastSavedSecond = 0;
+    _endedHandled = false;
+    _lastKnownSpeed = 1.0;
 
     // ✅ MP4 takes priority over HLS when available
     final isMp4 = controller.episode.usesMp4;
@@ -399,127 +417,89 @@ body { width:100vw; height:100vh; overflow:hidden; }
         ? controller.episode.mp4Url
         : controller.streamUrl.value;
 
-    final dataSource = BetterPlayerDataSource(
-      BetterPlayerDataSourceType.network,
-      videoUrl,
-      videoFormat: isMp4
-          ? BetterPlayerVideoFormat.other
-          : BetterPlayerVideoFormat.hls,
-      cacheConfiguration: const BetterPlayerCacheConfiguration(
-        useCache: true,
-        maxCacheSize: 500 * 1024 * 1024,
-        maxCacheFileSize: 100 * 1024 * 1024,
-      ),
-      bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-        minBufferMs: 20000,
-        maxBufferMs: 60000,
-        bufferForPlaybackMs: 2500,
-        bufferForPlaybackAfterRebufferMs: 5000,
-      ),
-    );
+    try {
+      final newController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
 
-    final config = BetterPlayerConfiguration(
-      autoPlay: true,
-      looping: false,
-      fullScreenByDefault: false,
-      allowedScreenSleep: true,
-      fit: BoxFit.contain,
-      autoDetectFullscreenDeviceOrientation: false,
-      autoDetectFullscreenAspectRatio: true,
-      deviceOrientationsOnFullScreen: const [
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ],
-      deviceOrientationsAfterFullScreen: const [
-        DeviceOrientation.portraitUp,
-      ],
-      controlsConfiguration: const BetterPlayerControlsConfiguration(
-        enablePlayPause: true,
-        enableSkips: true,
-        enableFullscreen: true,
-        enableProgressBar: true,
-        enablePlaybackSpeed: true,
-        enableAudioTracks: true,
-        enableQualities: true,
-        enableSubtitles: true,
-        forwardSkipTimeInMilliseconds: 10000,
-        backwardSkipTimeInMilliseconds: 10000,
-        progressBarPlayedColor: Color(0xFFE50914),
-        progressBarHandleColor: Color(0xFFE50914),
-        loadingColor: Color(0xFFE50914),
-        overflowMenuIconsColor: Colors.white,
-        iconsColor: Colors.white,
-        controlBarColor: Colors.transparent,
-      ),
-      eventListener: (event) {
-        if (!mounted) return;
-        try {
-          switch (event.betterPlayerEventType) {
-            case BetterPlayerEventType.initialized:
-              controller.isVideoLoading.value = false;
-              _hlsLoading.value = false;
-              _restoreWatchProgress();
-              _loadPlaybackSpeed();
-              FirebaseAnalytics.instance.logEvent(
-                name: 'video_played',
-                parameters: {
-                  'episode_title': controller.episode.title,
-                  'episode_number': controller.episode.episodeNumber,
-                  'player_type': 'custom_hls',
-                },
-              );
-              break;
-            case BetterPlayerEventType.openFullscreen:
-              SystemChrome.setPreferredOrientations([
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]);
-              break;
-            case BetterPlayerEventType.hideFullscreen:
-              SystemChrome.setPreferredOrientations([
-                DeviceOrientation.portraitUp,
-              ]);
-              break;
-            case BetterPlayerEventType.play:
-              WakelockPlus.enable();
-              break;
-            case BetterPlayerEventType.pause:
-              WakelockPlus.disable();
-              _autoSaveProgress();
-              break;
-            case BetterPlayerEventType.finished:
-              WakelockPlus.disable();
-              _clearWatchProgress();
-              break;
-            case BetterPlayerEventType.progress:
-              _autoSaveProgress();
-              break;
-            case BetterPlayerEventType.setSpeed:
-              _savePlaybackSpeed();
-              break;
-            case BetterPlayerEventType.exception:
-              _handlePlayerError();
-              break;
-            default:
-              break;
-          }
-        } catch (_) {}
-      },
-    );
+      await newController.initialize();
+      if (!mounted) {
+        newController.dispose();
+        return;
+      }
 
-    _betterPlayerController = BetterPlayerController(config);
-    _betterPlayerController!.setupDataSource(dataSource);
-    _betterPlayerControllerObs.value = _betterPlayerController;
+      newController.addListener(_onCustomPlayerUpdate);
 
-    if (!controller.isPlayerInitialized.value) {
-      controller.isPlayerInitialized.value = true;
+      _customPlayerController = newController;
+      _customPlayerControllerObs.value = newController;
+
+      controller.isVideoLoading.value = false;
+      _hlsLoading.value = false;
+
+      await newController.play();
+      WakelockPlus.enable();
+
+      await _restoreWatchProgress();
+      await _loadPlaybackSpeed();
+
+      FirebaseAnalytics.instance.logEvent(
+        name: 'video_played',
+        parameters: {
+          'episode_title': controller.episode.title,
+          'episode_number': controller.episode.episodeNumber,
+          'player_type': 'custom_hls',
+        },
+      );
+
+      if (!controller.isPlayerInitialized.value) {
+        controller.isPlayerInitialized.value = true;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ Custom player init error: $e');
+      _hlsLoading.value = false;
+      await _handlePlayerError();
+    }
+  }
+
+  bool _endedHandled = false;
+  double _lastKnownSpeed = 1.0;
+
+  void _onCustomPlayerUpdate() {
+    final c = _customPlayerController;
+    if (c == null || !mounted) return;
+    final value = c.value;
+
+    if (value.hasError) {
+      _handlePlayerError();
+      return;
+    }
+
+    if (value.isPlaying) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+      _autoSaveProgress();
+    }
+
+    if (value.duration.inMilliseconds > 0 &&
+        value.position >= value.duration &&
+        !_endedHandled) {
+      _endedHandled = true;
+      WakelockPlus.disable();
+      _clearWatchProgress();
+    } else if (value.position < value.duration) {
+      _endedHandled = false;
+      _autoSaveProgress();
+    }
+
+    if (value.playbackSpeed != _lastKnownSpeed) {
+      _lastKnownSpeed = value.playbackSpeed;
+      _savePlaybackSpeed();
     }
   }
 
   Future<bool> _onWillPop() async {
     // Pause everything before leaving
     _vastController.value?.pause();
-    _betterPlayerController?.pause();
+    _customPlayerController?.pause();
     if (_webViewController != null && await _webViewController!.canGoBack()) {
       await _webViewController!.goBack();
       return false;
@@ -576,7 +556,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
                   const SizedBox(height: AppSpacing.lg),
                   _VideoContainer(
                     webViewController: _webViewController,
-                    betterPlayerControllerObs: _betterPlayerControllerObs,
+                    customPlayerControllerObs: _customPlayerControllerObs,
                     hlsLoadingObs: _hlsLoading,
                     controller: controller,
                     onPlayTapped: _initializePlayer,
@@ -638,7 +618,7 @@ class _VideoContainer extends StatelessWidget {
   final WebViewController? webViewController;
   final VideoController controller;
   final VoidCallback onPlayTapped;
-  final Rx<BetterPlayerController?> betterPlayerControllerObs;
+  final Rx<VideoPlayerController?> customPlayerControllerObs;
   final RxBool hlsLoadingObs;
   final RxBool vastPlayingObs;
   final Rx<VideoPlayerController?> vastControllerObs;
@@ -650,7 +630,7 @@ class _VideoContainer extends StatelessWidget {
     required this.webViewController,
     required this.controller,
     required this.onPlayTapped,
-    required this.betterPlayerControllerObs,
+    required this.customPlayerControllerObs,
     required this.hlsLoadingObs,
     required this.vastPlayingObs,
     required this.vastControllerObs,
@@ -713,9 +693,11 @@ class _VideoContainer extends StatelessWidget {
                 vastSecondsLeftObs: vastSecondsLeftObs,
                 showSkipButtonObs: showSkipButtonObs,
                 vastControllerObs: vastControllerObs,
-                betterPlayerControllerObs: betterPlayerControllerObs,
+                customPlayerControllerObs: customPlayerControllerObs,
                 hlsLoadingObs: hlsLoadingObs,
+                controller: controller,
                 onSkipVast: onSkipVast,
+                onRetry: onPlayTapped,
               );
             }
 
@@ -741,17 +723,21 @@ class _VastOrHlsPlayer extends StatelessWidget {
   final RxInt vastSecondsLeftObs;
   final RxBool showSkipButtonObs;
   final Rx<VideoPlayerController?> vastControllerObs;
-  final Rx<BetterPlayerController?> betterPlayerControllerObs;
+  final Rx<VideoPlayerController?> customPlayerControllerObs;
   final RxBool hlsLoadingObs;
   final VoidCallback? onSkipVast;
+  final VideoController controller;
+  final VoidCallback onRetry;
 
   const _VastOrHlsPlayer({
     required this.vastPlayingObs,
     required this.vastSecondsLeftObs,
     required this.showSkipButtonObs,
     required this.vastControllerObs,
-    required this.betterPlayerControllerObs,
+    required this.customPlayerControllerObs,
     required this.hlsLoadingObs,
+    required this.controller,
+    required this.onRetry,
     this.onSkipVast,
   });
 
@@ -759,7 +745,7 @@ class _VastOrHlsPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final vc = vastControllerObs.value;
-      final bpc = betterPlayerControllerObs.value;
+      final cpc = customPlayerControllerObs.value;
       final isHlsLoading = hlsLoadingObs.value;
 
       // Show VAST ad
@@ -772,8 +758,8 @@ class _VastOrHlsPlayer extends StatelessWidget {
         );
       }
 
-      // HLS loading — smooth transition spinner
-      if (isHlsLoading || bpc == null) {
+      // Loading — smooth transition spinner
+      if (isHlsLoading || cpc == null) {
         return Container(
           color: Colors.black,
           child: const Center(
@@ -785,8 +771,12 @@ class _VastOrHlsPlayer extends StatelessWidget {
         );
       }
 
-      // HLS playing
-      return BetterPlayer(controller: bpc);
+      // Custom player
+      return CustomVideoPlayer(
+        controller: cpc,
+        title: controller.episode.title,
+        onRetry: onRetry,
+      );
     });
   }
 }
@@ -1021,6 +1011,7 @@ class _DownloadSection extends StatelessWidget {
       final progress = downloadService.getProgress(episodeId);
       final activeDownload = downloadService.activeDownloads[episodeId];
       final isPaused = activeDownload?.status == DownloadStatus.paused;
+      final isQueued = activeDownload?.status == DownloadStatus.queued;
 
       return Container(
         decoration: BoxDecoration(
@@ -1034,7 +1025,7 @@ class _DownloadSection extends StatelessWidget {
             Text('Download Episode', style: AppTypography.title),
             const SizedBox(height: AppSpacing.md),
 
-            if (isDownloading) ...[
+            if (isDownloading && !isQueued) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
@@ -1107,6 +1098,36 @@ class _DownloadSection extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+
+            if (isDownloading && isQueued) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  const Icon(Icons.queue_rounded, size: 16, color: Colors.grey),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Queued — waiting for current download to finish',
+                      style: AppTypography.caption
+                          .copyWith(color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: () => downloadService.cancelDownload(episodeId),
+                icon: const Icon(Icons.cancel_rounded),
+                label: const Text('Cancel'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade800,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.md,
+                    horizontal: AppSpacing.lg,
+                  ),
+                ),
               ),
             ],
 

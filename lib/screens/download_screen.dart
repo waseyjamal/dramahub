@@ -282,7 +282,10 @@ class _DownloadCard extends StatelessWidget {
       parameters: {'method': 'snaptube', 'episode_title': episode.title},
     );
     await SharePlus.instance.share(
-      ShareParams(text: url, subject: '${episode.title} - Download'),
+      ShareParams(
+        text: url,
+        subject: '${episode.title} - Download',
+      ),
     );
   }
 }

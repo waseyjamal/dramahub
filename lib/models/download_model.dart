@@ -107,4 +107,4 @@ class ActiveDownload {
   }
 }
 
-enum DownloadStatus { downloading, paused, failed, complete }
+enum DownloadStatus { queued, downloading, paused, failed, complete }

@@ -586,13 +586,33 @@ class AdService extends GetxService {
     required OfflineAdConfig offlineCfg,
     required VoidCallback onComplete,
   }) async {
+    Future<bool> tryAppodealInterstitial() async {
+      final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
+      if (!canShow) return false;
+      final completer = Completer<bool>();
+      Appodeal.setInterstitialCallbacks(
+        onInterstitialShown: () {},
+        onInterstitialClosed: () {
+          if (!completer.isCompleted) completer.complete(true);
+        },
+        onInterstitialShowFailed: () {
+          if (!completer.isCompleted) completer.complete(false);
+        },
+        onInterstitialLoaded: (_) {},
+        onInterstitialFailedToLoad: () {},
+        onInterstitialClicked: () {},
+        onInterstitialExpired: () {},
+      );
+      await Appodeal.show(AppodealAdType.Interstitial);
+      return completer.future;
+    }
+
     // Priority 1
     if (offlineCfg.priority1Enabled) {
       if (offlineCfg.priority1 == 'appodeal' &&
           _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-        if (canShow) {
-          await Appodeal.show(AppodealAdType.Interstitial);
+        final shown = await tryAppodealInterstitial();
+        if (shown) {
           _offlineAdShownCount++;
           _lastOfflineAdTime = DateTime.now();
           if (kDebugMode) debugPrint('✅ Offline interstitial via Appodeal');
@@ -616,9 +636,8 @@ class AdService extends GetxService {
     if (offlineCfg.priority2Enabled) {
       if (offlineCfg.priority2 == 'appodeal' &&
           _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-        if (canShow) {
-          await Appodeal.show(AppodealAdType.Interstitial);
+        final shown = await tryAppodealInterstitial();
+        if (shown) {
           _offlineAdShownCount++;
           _lastOfflineAdTime = DateTime.now();
           if (kDebugMode) debugPrint('✅ Offline interstitial via Appodeal P2');
@@ -686,17 +705,24 @@ class AdService extends GetxService {
         }
       } else if (offlineCfg.priority1 == 'cas' &&
           _cfg.config.adNetworks.casEnabled) {
-        bool casShown = false;
+        final completer = Completer<bool>();
         final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: () => casShown = true,
-          onNotAvailable: () {},
+          onRewarded: () {
+            if (!completer.isCompleted) completer.complete(true);
+          },
+          onNotAvailable: () {
+            if (!completer.isCompleted) completer.complete(false);
+          },
         );
-        if (shown && casShown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline rewarded via CAS');
-          onComplete();
-          return;
+        if (shown) {
+          final rewarded = await completer.future;
+          if (rewarded) {
+            _offlineAdShownCount++;
+            _lastOfflineAdTime = DateTime.now();
+            if (kDebugMode) debugPrint('✅ Offline rewarded via CAS');
+            onComplete();
+            return;
+          }
         }
       }
     }
@@ -715,17 +741,24 @@ class AdService extends GetxService {
         }
       } else if (offlineCfg.priority2 == 'cas' &&
           _cfg.config.adNetworks.casEnabled) {
-        bool casShown = false;
+        final completer = Completer<bool>();
         final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: () => casShown = true,
-          onNotAvailable: () {},
+          onRewarded: () {
+            if (!completer.isCompleted) completer.complete(true);
+          },
+          onNotAvailable: () {
+            if (!completer.isCompleted) completer.complete(false);
+          },
         );
-        if (shown && casShown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline rewarded via CAS P2');
-          onComplete();
-          return;
+        if (shown) {
+          final rewarded = await completer.future;
+          if (rewarded) {
+            _offlineAdShownCount++;
+            _lastOfflineAdTime = DateTime.now();
+            if (kDebugMode) debugPrint('✅ Offline rewarded via CAS P2');
+            onComplete();
+            return;
+          }
         }
       }
     }

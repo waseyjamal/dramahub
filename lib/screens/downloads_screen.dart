@@ -1,7 +1,9 @@
-import 'package:better_player_plus/better_player_plus.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:video_player/video_player.dart';
+import 'package:drama_hub/widgets/custom_video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/download_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -22,10 +24,7 @@ class DownloadsScreen extends StatelessWidget {
     final service = DownloadService.instance;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Downloads'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Downloads'), centerTitle: true),
       body: Obx(() {
         final active = service.activeDownloads.values.toList();
         final completed = service.completedDownloads;
@@ -45,10 +44,9 @@ class DownloadsScreen extends StatelessWidget {
             if (active.isNotEmpty) ...[
               Text('Downloading', style: AppTypography.title),
               const SizedBox(height: AppSpacing.md),
-              ...active.map((d) => _ActiveDownloadCard(
-                    download: d,
-                    service: service,
-                  )),
+              ...active.map(
+                (d) => _ActiveDownloadCard(download: d, service: service),
+              ),
               const SizedBox(height: AppSpacing.xl),
             ],
 
@@ -56,10 +54,9 @@ class DownloadsScreen extends StatelessWidget {
             if (completed.isNotEmpty) ...[
               Text('Downloaded Episodes', style: AppTypography.title),
               const SizedBox(height: AppSpacing.md),
-              ...completed.map((ep) => _CompletedEpisodeCard(
-                    episode: ep,
-                    service: service,
-                  )),
+              ...completed.map(
+                (ep) => _CompletedEpisodeCard(episode: ep, service: service),
+              ),
             ],
           ],
         );
@@ -106,8 +103,10 @@ class _StorageSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalBytes = service.completedDownloads
-        .fold<int>(0, (sum, e) => sum + e.fileSizeBytes);
+    final totalBytes = service.completedDownloads.fold<int>(
+      0,
+      (sum, e) => sum + e.fileSizeBytes,
+    );
     final totalMb = totalBytes / 1024 / 1024;
 
     return Container(
@@ -118,8 +117,11 @@ class _StorageSummary extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.storage_rounded,
-              color: AppColors.primaryRed, size: 18),
+          const Icon(
+            Icons.storage_rounded,
+            color: AppColors.primaryRed,
+            size: 18,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Text(
             '${service.completedDownloads.length} episodes • ${totalMb.toStringAsFixed(0)} MB used',
@@ -140,13 +142,11 @@ class _ActiveDownloadCard extends StatelessWidget {
   final ActiveDownload download;
   final DownloadService service;
 
-  const _ActiveDownloadCard({
-    required this.download,
-    required this.service,
-  });
+  const _ActiveDownloadCard({required this.download, required this.service});
 
   @override
   Widget build(BuildContext context) {
+    final isQueued = download.status == DownloadStatus.queued;
     final isPaused = download.status == DownloadStatus.paused;
     final isFailed = download.status == DownloadStatus.failed;
 
@@ -169,41 +169,48 @@ class _ActiveDownloadCard extends StatelessWidget {
                   children: [
                     Text(
                       download.dramaTitle,
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.softGrey),
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.softGrey,
+                      ),
                     ),
                     Text(
                       'Episode ${download.episodeNumber}',
-                      style: AppTypography.body
-                          .copyWith(fontWeight: FontWeight.w600),
+                      style: AppTypography.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
               // Status chip
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isFailed
                       ? Colors.red.withValues(alpha: 0.15)
                       : isPaused
-                          ? Colors.orange.withValues(alpha: 0.15)
-                          : AppColors.primaryRed.withValues(alpha: 0.15),
+                      ? Colors.orange.withValues(alpha: 0.15)
+                      : isQueued
+                      ? Colors.grey.withValues(alpha: 0.15)
+                      : AppColors.primaryRed.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   isFailed
                       ? 'Failed'
                       : isPaused
-                          ? 'Paused'
-                          : 'Downloading',
+                      ? 'Paused'
+                      : isQueued
+                      ? 'Queued'
+                      : 'Downloading',
                   style: AppTypography.caption.copyWith(
                     color: isFailed
                         ? Colors.red
                         : isPaused
-                            ? Colors.orange
-                            : AppColors.primaryRed,
+                        ? Colors.orange
+                        : isQueued
+                        ? Colors.grey
+                        : AppColors.primaryRed,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -211,28 +218,27 @@ class _ActiveDownloadCard extends StatelessWidget {
             ],
           ),
 
-          if (!isFailed) ...[
+          if (!isFailed && !isQueued) ...[
             const SizedBox(height: AppSpacing.md),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: Obx(() => LinearProgressIndicator(
-                    value: service
-                            .activeDownloads[download.episodeId]
-                            ?.progress ??
-                        download.progress,
-                    backgroundColor:
-                        AppColors.softGrey.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isPaused ? Colors.orange : AppColors.primaryRed,
-                    ),
-                    minHeight: 6,
-                  )),
+              child: Obx(
+                () => LinearProgressIndicator(
+                  value:
+                      service.activeDownloads[download.episodeId]?.progress ??
+                      download.progress,
+                  backgroundColor: AppColors.softGrey.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isPaused ? Colors.orange : AppColors.primaryRed,
+                  ),
+                  minHeight: 6,
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             // ✅ FIX — shows both percentage AND MB progress
             Obx(() {
-              final active =
-                  service.activeDownloads[download.episodeId];
+              final active = service.activeDownloads[download.episodeId];
               final p = active?.progress ?? download.progress;
               final mbText = active?.mbProgressText ?? '';
               return Row(
@@ -242,14 +248,16 @@ class _ActiveDownloadCard extends StatelessWidget {
                     isPaused
                         ? 'Paused — ${(p * 100).toStringAsFixed(0)}%'
                         : '${(p * 100).toStringAsFixed(0)}%',
-                    style: AppTypography.caption
-                        .copyWith(color: AppColors.softGrey),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.softGrey,
+                    ),
                   ),
                   if (mbText.isNotEmpty)
                     Text(
                       mbText,
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.softGrey),
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.softGrey,
+                      ),
                     ),
                 ],
               );
@@ -260,7 +268,7 @@ class _ActiveDownloadCard extends StatelessWidget {
 
           Row(
             children: [
-              if (!isFailed)
+              if (!isFailed && !isQueued)
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
@@ -271,19 +279,16 @@ class _ActiveDownloadCard extends StatelessWidget {
                       }
                     },
                     icon: Icon(
-                      isPaused
-                          ? Icons.play_arrow_rounded
-                          : Icons.pause_rounded,
+                      isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                       size: 18,
                     ),
                     label: Text(isPaused ? 'Resume' : 'Pause'),
                   ),
                 ),
-              if (!isFailed) const SizedBox(width: AppSpacing.md),
+              if (!isFailed && !isQueued) const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () =>
-                      service.cancelDownload(download.episodeId),
+                  onPressed: () => service.cancelDownload(download.episodeId),
                   icon: const Icon(Icons.cancel_rounded, size: 18),
                   label: const Text('Cancel'),
                   style: OutlinedButton.styleFrom(
@@ -318,10 +323,7 @@ class _CompletedEpisodeCard extends StatefulWidget {
   final DownloadedEpisode episode;
   final DownloadService service;
 
-  const _CompletedEpisodeCard({
-    required this.episode,
-    required this.service,
-  });
+  const _CompletedEpisodeCard({required this.episode, required this.service});
 
   @override
   State<_CompletedEpisodeCard> createState() => _CompletedEpisodeCardState();
@@ -352,8 +354,9 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
     // ✅ Show loading indicator immediately — user gets instant feedback
     setState(() => _isLoading = true);
 
-    final playbackPath =
-        await widget.service.getPlaybackPath(widget.episode.episodeId);
+    final playbackPath = await widget.service.getPlaybackPath(
+      widget.episode.episodeId,
+    );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -367,10 +370,8 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
     }
 
     Get.to(
-      () => OfflinePlayerScreen(
-        episode: widget.episode,
-        filePath: playbackPath,
-      ),
+      () =>
+          OfflinePlayerScreen(episode: widget.episode, filePath: playbackPath),
       transition: Transition.downToUp,
     );
   }
@@ -393,7 +394,8 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryRed),
+              backgroundColor: AppColors.primaryRed,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -428,7 +430,7 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
         child: Row(
           children: [
             // Thumbnail — flush to left edge, rounded left corners only
-             ClipRRect(
+            ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.medium),
               child: widget.episode.thumbnailUrl.isNotEmpty
                   ? CachedNetworkImage(
@@ -440,16 +442,20 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
                         width: 65,
                         height: 85,
                         color: AppColors.secondaryDark,
-                        child: const Icon(Icons.movie_outlined,
-                            color: Colors.white30),
+                        child: const Icon(
+                          Icons.movie_outlined,
+                          color: Colors.white30,
+                        ),
                       ),
                     )
                   : Container(
                       width: 65,
                       height: 85,
                       color: AppColors.secondaryDark,
-                      child: const Icon(Icons.movie_outlined,
-                          color: Colors.white30),
+                      child: const Icon(
+                        Icons.movie_outlined,
+                        color: Colors.white30,
+                      ),
                     ),
             ),
 
@@ -484,10 +490,7 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
                     const SizedBox(height: 2),
                     Text(
                       '${widget.episode.sizeText} • ${_formatDate(widget.episode.downloadedAt)}',
-                      style: TextStyle(
-                        color: AppColors.softGrey,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: AppColors.softGrey, fontSize: 11),
                     ),
                   ],
                 ),
@@ -510,10 +513,7 @@ class _CompletedEpisodeCardState extends State<_CompletedEpisodeCard> {
               )
             else
               IconButton(
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  color: Colors.white24,
-                ),
+                icon: Icon(Icons.delete_outline_rounded, color: Colors.white24),
                 onPressed: _delete,
                 tooltip: 'Delete',
               ),
@@ -531,10 +531,7 @@ class OfflinePlayerScreen extends StatefulWidget {
   final DownloadedEpisode episode;
   final String filePath;
 
-  const OfflinePlayerScreen({
-    required this.episode,
-    required this.filePath,
-  });
+  const OfflinePlayerScreen({required this.episode, required this.filePath});
 
   @override
   State<OfflinePlayerScreen> createState() => _OfflinePlayerScreenState();
@@ -542,7 +539,8 @@ class OfflinePlayerScreen extends StatefulWidget {
 
 class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
     with WidgetsBindingObserver {
-  BetterPlayerController? _playerController;
+  VideoPlayerController? _playerController;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -551,51 +549,22 @@ class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
     _initPlayer();
   }
 
-  void _initPlayer() {
-    final dataSource = BetterPlayerDataSource(
-      BetterPlayerDataSourceType.file,
-      widget.filePath,
-      videoFormat: BetterPlayerVideoFormat.other,
-      bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-        minBufferMs: 5000,
-        maxBufferMs: 30000,
-        bufferForPlaybackMs: 2500,
-        bufferForPlaybackAfterRebufferMs: 5000,
-      ),
-    );
-
-    final config = BetterPlayerConfiguration(
-      autoPlay: true,
-      looping: false,
-      fit: BoxFit.contain,
-      autoDetectFullscreenAspectRatio: true,
-      autoDetectFullscreenDeviceOrientation: true,
-      deviceOrientationsOnFullScreen: const [
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ],
-      deviceOrientationsAfterFullScreen: const [
-        DeviceOrientation.portraitUp,
-      ],
-      controlsConfiguration: const BetterPlayerControlsConfiguration(
-        enablePlayPause: true,
-        enableSkips: true,
-        enableFullscreen: true,
-        enableProgressBar: true,
-        enablePlaybackSpeed: true,
-        forwardSkipTimeInMilliseconds: 10000,
-        backwardSkipTimeInMilliseconds: 10000,
-        progressBarPlayedColor: Color(0xFFE50914),
-        progressBarHandleColor: Color(0xFFE50914),
-        loadingColor: Color(0xFFE50914),
-        iconsColor: Colors.white,
-        controlBarColor: Colors.transparent,
-      ),
-    );
-
-    _playerController = BetterPlayerController(config);
-    _playerController!.setupDataSource(dataSource);
-    setState(() {});
+  Future<void> _initPlayer() async {
+    try {
+      final newController = VideoPlayerController.file(File(widget.filePath));
+      await newController.initialize();
+      if (!mounted) {
+        newController.dispose();
+        return;
+      }
+      await newController.play();
+      _playerController = newController;
+      _hasError = false;
+      setState(() {});
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ Offline player init error: $e');
+      if (mounted) setState(() => _hasError = true);
+    }
   }
 
   @override
@@ -620,23 +589,60 @@ class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          widget.episode.displayName,
-          style: const TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: _playerController != null
-                  ? BetterPlayer(controller: _playerController!)
+              child: _hasError
+                  ? Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.white54,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Could not play this episode',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() => _hasError = false);
+                                _initPlayer();
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _playerController != null
+                  ? AspectRatio(
+                      aspectRatio: _playerController!.value.aspectRatio == 0
+                          ? 16 / 9
+                          : _playerController!.value.aspectRatio,
+                      child: CustomVideoPlayer(
+                        controller: _playerController!,
+                        title: widget.episode.displayName,
+                        onBack: () => Navigator.of(context).pop(),
+                        onRetry: () {
+                          setState(() => _hasError = false);
+                          _initPlayer();
+                        },
+                      ),
+                    )
                   : const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFFE50914))),
+                        color: Color(0xFFE50914),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -645,13 +651,15 @@ class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.offline_bolt_rounded,
-                      color: Colors.green, size: 18),
+                  const Icon(
+                    Icons.offline_bolt_rounded,
+                    color: Colors.green,
+                    size: 18,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     'Playing offline • ${widget.episode.sizeText}',
-                    style: AppTypography.caption
-                        .copyWith(color: Colors.green),
+                    style: AppTypography.caption.copyWith(color: Colors.green),
                   ),
                 ],
               ),

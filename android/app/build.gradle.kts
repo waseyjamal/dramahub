@@ -20,8 +20,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
     }
     signingConfigs {
         create("release") {
@@ -35,8 +37,8 @@ android {
         applicationId = "com.dramahub.drama_hub"
         minSdk = 24
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.8"
+        versionCode = 10
+        versionName = "1.0.9"
         multiDexEnabled = true
     }
     buildTypes {
@@ -54,6 +56,8 @@ android {
 flutter {
     source = "../.."
 }
+
+
 cas {
     useAdvertisingId = true
     adapters {
@@ -80,9 +84,5 @@ dependencies {
     implementation("com.appodeal.ads.sdk.adapters:bidmachine:3.6.1.0")
     implementation("com.appodeal.ads.sdk.adapters:iab:1.8.1.0")
     implementation("com.appodeal.ads.sdk.adapters:sentry_analytics:8.26.0.0")
-    implementation("com.appodeal.ads.sdk.adapters:vungle:7.6.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:ironsource:9.1.0.0")
-    implementation("com.appodeal.ads.sdk.adapters:mintegral:17.0.31.0")
-    implementation("com.appodeal.ads.sdk.adapters:dt_exchange:8.4.1.0")
     implementation("com.appodeal.ads.sdk.adapters:inmobi:11.1.0.0")
 }

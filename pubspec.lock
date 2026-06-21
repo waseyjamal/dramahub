@@ -49,14 +49,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.5.5"
-  better_player_plus:
-    dependency: "direct main"
-    description:
-      name: better_player_plus
-      sha256: "133e212e68ce830d0fa72da02efe597571a9915b526927fa3b427c70dea64613"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.1"
   boolean_selector:
     dependency: transitive
     description:
@@ -351,18 +343,13 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_cache_manager:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_cache_manager
       sha256: "400b6592f16a4409a7f2bb929a9a7e38c72cceb8ffb99ee57bbf2cb2cecf8386"
       url: "https://pub.dev"
     source: hosted
     version: "3.4.1"
-  flutter_localizations:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   flutter_native_splash:
     dependency: "direct main"
     description:
@@ -429,14 +416,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_widget_from_html_core:
-    dependency: transitive
-    description:
-      name: flutter_widget_from_html_core
-      sha256: "7ff010b116f6abc16429923e616fbc727f3f65ef4cee12ffdb280aeecbc21e7f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.17.2"
   get:
     dependency: "direct main"
     description:
@@ -493,14 +472,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.8.0"
-  intl:
-    dependency: transitive
-    description:
-      name: intl
-      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.20.2"
   jni:
     dependency: transitive
     description:
@@ -757,6 +728,62 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
+  screen_brightness:
+    dependency: "direct main"
+    description:
+      name: screen_brightness
+      sha256: "7ea1c037422f007f022dcff3ee955bf8e61a474d5426b29be9290fd976c3e46b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.9"
+  screen_brightness_android:
+    dependency: transitive
+    description:
+      name: screen_brightness_android
+      sha256: "0e4b0a07d5f730b91a8780d8436f3a92be8a8cc2066032ed88b93c8fa153fadf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.5"
+  screen_brightness_ios:
+    dependency: transitive
+    description:
+      name: screen_brightness_ios
+      sha256: "0792d8f98852558f831b4b75241c46047b884598b3f4d982b37dc2dd43e2b2e1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.3"
+  screen_brightness_macos:
+    dependency: transitive
+    description:
+      name: screen_brightness_macos
+      sha256: "278712cf5288db57bd335968cbfb2ec5441028f1ee2fcbdc8d1582d8210a3442"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.2"
+  screen_brightness_ohos:
+    dependency: transitive
+    description:
+      name: screen_brightness_ohos
+      sha256: "33f495741d5aa53104d3f5875dcb4b6a119f29ef595be17129ee03a5b78e76a9"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.3"
+  screen_brightness_platform_interface:
+    dependency: transitive
+    description:
+      name: screen_brightness_platform_interface
+      sha256: "59d50850d6735d677780fc7359c8e997d0ff6df91c8465161c9e617a7b0a11d8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.1"
+  screen_brightness_windows:
+    dependency: transitive
+    description:
+      name: screen_brightness_windows
+      sha256: "121f9dd6d62585bfb4e468c2170804ce4f2a2303ae6b2efc3a065c94937505d7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.1"
   share_plus:
     dependency: "direct main"
     description:
@@ -1082,14 +1109,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
-  visibility_detector:
-    dependency: transitive
-    description:
-      name: visibility_detector
-      sha256: dd5cc11e13494f432d15939c3aa8ae76844c42b723398643ce9addb88a5ed420
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.0+2"
   vm_service:
     dependency: transitive
     description:
@@ -1098,6 +1117,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.2.0"
+  volume_controller:
+    dependency: "direct main"
+    description:
+      name: volume_controller
+      sha256: bed7c57b1da19d60a58e2ed598b6824754cd9af1b728b26fb966a8745c72629c
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.5.0"
   wakelock_plus:
     dependency: "direct main"
     description:
@@ -1188,4 +1215,4 @@ packages:
     version: "3.1.3"
 sdks:
   dart: ">=3.11.0 <4.0.0"
-  flutter: ">=3.41.0"
+  flutter: ">=3.38.4"

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -20,7 +19,7 @@ class DownloadService extends GetxService {
   static const int _obfuscateBytes = 1024 * 1024; // 1MB
 
   final _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
   );
 
   // ✅ Observable state
@@ -47,7 +46,7 @@ class DownloadService extends GetxService {
     await _initXorKey();
 
     // ✅ Configure background_downloader
-    await FileDownloader().configure(
+    FileDownloader().configure(
       globalConfig: (
         Config.holdingQueue,
         (1, 1, 1), // max 3 concurrent, 2 per host, 1 per group
@@ -55,7 +54,7 @@ class DownloadService extends GetxService {
     );
 
     // ✅ Configure notifications
-    await FileDownloader().configureNotification(
+    FileDownloader().configureNotification(
       running: const TaskNotification(
         'Downloading {filename}',
         '{progress}%',
@@ -201,11 +200,16 @@ class DownloadService extends GetxService {
 
     try {
       // Add to active downloads immediately for UI feedback
+      // If something is already actively downloading, this one is queued
+      final isQueued = activeDownloads.values.any(
+        (d) => d.status == DownloadStatus.downloading,
+      );
       activeDownloads[episode.id] = ActiveDownload(
         episodeId: episode.id,
         episodeTitle: episode.title,
         dramaTitle: dramaTitle,
         episodeNumber: episode.episodeNumber,
+        status: isQueued ? DownloadStatus.queued : DownloadStatus.downloading,
       );
       downloadCount.value = activeDownloads.length + completedDownloads.length;
 
@@ -466,6 +470,7 @@ class DownloadService extends GetxService {
     switch (update.status) {
       case TaskStatus.complete:
         await _onDownloadComplete(update.task);
+        _promoteNextQueued();
         break;
 
       case TaskStatus.failed:
@@ -484,10 +489,21 @@ class DownloadService extends GetxService {
         _activeTasks.remove(episodeId); // ✅ NEW — clean up stored task
         downloadCount.value =
             activeDownloads.length + completedDownloads.length;
+        _promoteNextQueued();
         break;
 
       default:
         break;
+    }
+  }
+
+  void _promoteNextQueued() {
+    final next = activeDownloads.values
+        .where((d) => d.status == DownloadStatus.queued)
+        .firstOrNull;
+    if (next != null) {
+      activeDownloads[next.episodeId]!.status = DownloadStatus.downloading;
+      activeDownloads.refresh();
     }
   }
 
