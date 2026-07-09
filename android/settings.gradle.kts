@@ -1,4 +1,4 @@
-﻿pluginManagement {
+pluginManagement {
     val flutterSdkPath = run {
         val properties = java.util.Properties()
         file("local.properties").inputStream().use { properties.load(it) }
@@ -11,7 +11,8 @@
         google()
         mavenCentral()
         gradlePluginPortal()
-        maven { url = uri("https://artifactory.appodeal.com/appodeal") }
+        // ✅ LevelPlay (IronSource) — added for LevelPlay SDK
+        maven { url = uri("https://android-sdk.is.com/") }
     }
 }
 plugins {
@@ -19,6 +20,5 @@ plugins {
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.21" apply false
     id("com.google.gms.google-services") version "4.4.4" apply false
-    id("com.cleveradssolutions.gradle-plugin") version "4.6.6" apply false
 }
 include(":app")

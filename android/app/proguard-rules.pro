@@ -36,11 +36,11 @@
 -dontwarn com.google.android.play.core.**
 -keep class com.google.android.play.core.** { *; }
 
-# Appodeal
--keep class com.appodeal.** { *; }
--keep class com.explorestack.** { *; }
--dontwarn com.appodeal.**
--dontwarn com.explorestack.**
+# Appodeal — DISABLED (Appodeal removed)
+#-keep class com.appodeal.** { *; }
+#-keep class com.explorestack.** { *; }
+#-dontwarn com.appodeal.**
+#-dontwarn com.explorestack.**
 
 # Unity Ads (used by Appodeal internally)
 -keep class com.unity3d.ads.** { *; }
@@ -70,9 +70,9 @@
 -dontwarn com.facebook.ads.**
 -keep class com.facebook.ads.** { *; }
 
-# CAS (Clever Ads Solutions)
--dontwarn com.cleveradssolutions.**
--keep class com.cleveradssolutions.** { *; }
+# CAS (Clever Ads Solutions) — DISABLED (CAS commented out)
+#-dontwarn com.cleveradssolutions.**
+#-keep class com.cleveradssolutions.** { *; }
 
 # AppLovin
 -dontwarn com.applovin.**

@@ -28,13 +28,11 @@ class EpisodesScreen extends GetView<EpisodesController> {
         centerTitle: true,
       ),
       body: Obx(() {
-        // ✅ 5.12 — Obx only for loading/error states
-        // Header, banner, description are non-reactive — don't need Obx
-        if (controller.isLoading.value) return const _EpisodesSkeletonLoader();
+        if (controller.isLoading.value && !controller.isComingSoonActive.value) {
+          return const _EpisodesSkeletonLoader();
+        }
         if (!controller.hasInternet.value) return _buildNoInternet();
         if (controller.hasError.value) return _buildError();
-
-        // Content body — static parts outside Obx
         return _buildContent();
       }),
     );
@@ -66,7 +64,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
             ),
           ),
         ],
@@ -101,7 +100,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
             ),
           ),
         ],
@@ -109,25 +109,26 @@ class EpisodesScreen extends GetView<EpisodesController> {
     );
   }
 
-  // In _buildContent(), replace _EpisodeGrid inside CustomScrollView:
-
   Widget _buildContent() {
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: () => controller.loadEpisodes(),
         color: AppColors.primaryRed,
         backgroundColor: AppColors.cardBackground,
-        // ✅ 5.8 — CustomScrollView replaces SingleChildScrollView
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: AppSpacing.lg),
+
+                  // Banner
                   _DramaHeader(controller: controller),
                   const SizedBox(height: AppSpacing.md),
-                  // title, description, promo card — all static, no Obx
+
+                  // Title + meta
                   Text(
                     controller.selectedDrama.title,
                     style: AppTypography.headlineMedium,
@@ -141,39 +142,20 @@ class EpisodesScreen extends GetView<EpisodesController> {
                       color: AppColors.softGrey,
                     ),
                   ),
-                  if (controller.selectedDrama.description.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground,
-                        borderRadius: BorderRadius.circular(AppRadius.large),
-                        boxShadow: AppShadows.cardShadow,
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Text(
-                        controller.selectedDrama.description,
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.softGrey,
-                          fontSize: 13,
-                          height: 1.7,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: AppSpacing.xl),
-                  if (controller.selectedDrama.id ==
-                      AppConstants.premiumDramaId)
-                    const _MembershipPromoCard(),
-                  const SizedBox(height: AppSpacing.xl),
-                  const _SearchBar(),
-                  const SizedBox(height: AppSpacing.md),
-                  CasNativeAdWidget(screenKey: 'episodes_screen'),
-                  const SizedBox(height: AppSpacing.xl),
+
+                  // Coming Soon block OR normal content
+                  Obx(() => controller.isComingSoonActive.value
+                      ? _ComingSoonBlock(controller: controller)
+                      : _NormalContent(controller: controller)),
                 ]),
               ),
             ),
 
-            // ✅ 5.8 + 5.12 — SliverGrid with Obx ONLY around the episode list
+            // Episodes grid — hidden when coming soon active
             Obx(() {
+              if (controller.isComingSoonActive.value) {
+                return const SliverToBoxAdapter(child: SizedBox.shrink());
+              }
               if (controller.filteredEpisodes.isEmpty) {
                 return SliverToBoxAdapter(
                   child: Padding(
@@ -181,7 +163,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('📺', style: TextStyle(fontSize: 64)),
+                        const Text('📺',
+                            style: TextStyle(fontSize: 64)),
                         const SizedBox(height: 16),
                         const Text(
                           'No Episodes Found',
@@ -194,7 +177,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
                         const SizedBox(height: 8),
                         Text(
                           'Episodes are coming soon. Stay tuned!',
-                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -203,31 +187,38 @@ class EpisodesScreen extends GetView<EpisodesController> {
                 );
               }
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.667,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
                   ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    if (index >= controller.filteredEpisodes.length) {
-                      return const SizedBox.shrink();
-                    }
-                    final episode = controller.filteredEpisodes[index];
-                    return _EpisodeCard(
-                      episode: episode,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        if (episode.isPremium) {
-                          Get.toNamed(AppRoutes.premium);
-                        } else {
-                          controller.openEpisode(episode);
-                        }
-                      },
-                    );
-                  }, childCount: controller.filteredEpisodes.length),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      if (index >=
+                          controller.filteredEpisodes.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final episode =
+                          controller.filteredEpisodes[index];
+                      return _EpisodeCard(
+                        episode: episode,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          if (episode.isPremium) {
+                            Get.toNamed(AppRoutes.premium);
+                          } else {
+                            controller.openEpisode(episode);
+                          }
+                        },
+                      );
+                    },
+                    childCount: controller.filteredEpisodes.length,
+                  ),
                 ),
               );
             }),
@@ -243,6 +234,251 @@ class EpisodesScreen extends GetView<EpisodesController> {
   }
 }
 
+// ── Coming Soon Block ─────────────────────────────────────────────────────────
+
+class _ComingSoonBlock extends StatelessWidget {
+  final EpisodesController controller;
+  const _ComingSoonBlock({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final drama = controller.selectedDrama;
+    String premiereFormatted = '';
+    if (drama.premiereDate != null && drama.premiereDate!.isNotEmpty) {
+      try {
+        final date = DateTime.parse(drama.premiereDate!);
+        const months = [
+          'January', 'February', 'March', 'April',
+          'May', 'June', 'July', 'August',
+          'September', 'October', 'November', 'December'
+        ];
+        premiereFormatted =
+            '${date.day} ${months[date.month - 1]} ${date.year}';
+      } catch (_) {
+        premiereFormatted = drama.premiereDate!;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: AppSpacing.xl),
+
+        // COMING SOON pill button
+        Container(
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppColors.primaryRed,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Center(
+            child: Text(
+              '🔥  COMING SOON',
+              style: AppTypography.title.copyWith(
+                color: AppColors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // PREMIERES ON card
+        if (premiereFormatted.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              boxShadow: AppShadows.cardShadow,
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'PREMIERES ON',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.softGrey,
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  premiereFormatted,
+                  style: AppTypography.title.copyWith(
+                    color: AppColors.primaryRed,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // Countdown timer
+        Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: 22),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            boxShadow: AppShadows.cardShadow,
+          ),
+          child: Obx(
+            () => Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _CsTimeBox(
+                    value: controller.csDays.value, label: 'DAYS'),
+                _CsDivider(),
+                _CsTimeBox(
+                    value: controller.csHours.value, label: 'HOURS'),
+                _CsDivider(),
+                _CsTimeBox(
+                    value: controller.csMinutes.value, label: 'MINS'),
+                _CsDivider(),
+                _CsTimeBox(
+                    value: controller.csSeconds.value, label: 'SECS'),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // Description
+        if (drama.description.isNotEmpty)
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              boxShadow: AppShadows.cardShadow,
+            ),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              drama.description,
+              style: AppTypography.body.copyWith(
+                color: AppColors.softGrey,
+                fontSize: 13,
+                height: 1.7,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+}
+
+class _CsTimeBox extends StatelessWidget {
+  final int value;
+  final String label;
+  const _CsTimeBox({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 62,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.secondaryDark,
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+          ),
+          child: Center(
+            child: Text(
+              value.toString().padLeft(2, '0'),
+              style: AppTypography.headlineMedium.copyWith(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: AppTypography.caption.copyWith(
+            color: AppColors.primaryRed,
+            fontSize: 9,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CsDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Text(
+        ':',
+        style: TextStyle(
+          color: AppColors.softGrey,
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Normal Content (description + search + ad) ───────────────────────────────
+
+class _NormalContent extends StatelessWidget {
+  final EpisodesController controller;
+  const _NormalContent({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (controller.selectedDrama.description.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              boxShadow: AppShadows.cardShadow,
+            ),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              controller.selectedDrama.description,
+              style: AppTypography.body.copyWith(
+                color: AppColors.softGrey,
+                fontSize: 13,
+                height: 1.7,
+              ),
+            ),
+          ),
+        const SizedBox(height: AppSpacing.xl),
+        if (controller.selectedDrama.id == AppConstants.premiumDramaId)
+          const _MembershipPromoCard(),
+        const SizedBox(height: AppSpacing.xl),
+        const _SearchBar(),
+        const SizedBox(height: AppSpacing.md),
+        CasNativeAdWidget(screenKey: 'episodes_screen'),
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+}
+
+// ── Skeleton, Header, Promo, Search, Episode Card (unchanged) ─────────────────
+
 class _EpisodesSkeletonLoader extends StatelessWidget {
   const _EpisodesSkeletonLoader();
 
@@ -256,7 +492,6 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            // Banner skeleton
             Container(
               height: 200,
               decoration: BoxDecoration(
@@ -265,7 +500,6 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // Title skeleton
             Container(
               height: 24,
               width: 250,
@@ -284,7 +518,6 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Search skeleton
             Container(
               height: 48,
               decoration: BoxDecoration(
@@ -293,11 +526,11 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Episode grid skeleton
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 0.667,
                 crossAxisSpacing: 12,
@@ -318,16 +551,13 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
   }
 }
 
-/// Drama header with hero banner
 class _DramaHeader extends StatelessWidget {
   final EpisodesController controller;
-
   const _DramaHeader({required this.controller});
 
   @override
   Widget build(BuildContext context) {
     final drama = controller.selectedDrama;
-
     return Container(
       height: 200,
       decoration: BoxDecoration(
@@ -360,9 +590,7 @@ class _DramaHeader extends StatelessWidget {
               right: AppSpacing.md,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                    horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -370,11 +598,8 @@ class _DramaHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: AppColors.goldAccent,
-                      size: 14,
-                    ),
+                    const Icon(Icons.star_rounded,
+                        color: AppColors.goldAccent, size: 14),
                     const SizedBox(width: 4),
                     Text(
                       drama.rating.toStringAsFixed(1),
@@ -395,7 +620,6 @@ class _DramaHeader extends StatelessWidget {
   }
 }
 
-/// Membership promo card
 class _MembershipPromoCard extends StatelessWidget {
   const _MembershipPromoCard();
 
@@ -458,14 +682,12 @@ class _MembershipPromoCard extends StatelessWidget {
   }
 }
 
-/// Search episode bar
 class _SearchBar extends StatelessWidget {
   const _SearchBar();
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<EpisodesController>();
-
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -477,13 +699,13 @@ class _SearchBar extends StatelessWidget {
         style: AppTypography.body,
         decoration: InputDecoration(
           hintText: 'Search episode...',
-          hintStyle: AppTypography.body.copyWith(color: AppColors.softGrey),
-          prefixIcon: const Icon(Icons.search, color: AppColors.softGrey),
+          hintStyle:
+              AppTypography.body.copyWith(color: AppColors.softGrey),
+          prefixIcon:
+              const Icon(Icons.search, color: AppColors.softGrey),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: 12,
-          ),
+              horizontal: AppSpacing.lg, vertical: 12),
         ),
       ),
     );
@@ -493,7 +715,6 @@ class _SearchBar extends StatelessWidget {
 class _EpisodeCard extends StatelessWidget {
   final EpisodeModel episode;
   final VoidCallback onTap;
-
   const _EpisodeCard({required this.episode, required this.onTap});
 
   @override
@@ -522,7 +743,8 @@ class _EpisodeCard extends StatelessWidget {
                         placeholder: (context, url) => Container(
                           color: AppColors.secondaryDark,
                           child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2),
                           ),
                         ),
                         errorWidget: (context, url, error) => Container(
@@ -573,7 +795,8 @@ class _EpisodeCard extends StatelessWidget {
                       'EP ${episode.episodeNumber}',
                       style: AppTypography.headlineMedium.copyWith(
                         fontSize: 32,
-                        color: AppColors.white.withValues(alpha: 0.15),
+                        color:
+                            AppColors.white.withValues(alpha: 0.15),
                       ),
                     ),
                   ),
@@ -588,11 +811,8 @@ class _EpisodeCard extends StatelessWidget {
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.3),
                     child: const Center(
-                      child: Icon(
-                        Icons.lock,
-                        color: AppColors.primaryRed,
-                        size: 48,
-                      ),
+                      child: Icon(Icons.lock,
+                          color: AppColors.primaryRed, size: 48),
                     ),
                   ),
                 ),
@@ -631,10 +851,8 @@ class _EpisodeCard extends StatelessWidget {
   }
 }
 
-/// Status badge for episodes
 class _StatusBadge extends StatelessWidget {
   final EpisodeModel episode;
-
   const _StatusBadge({required this.episode});
 
   @override
@@ -673,10 +891,7 @@ class _StatusBadge extends StatelessWidget {
       ),
     );
 
-    if (isNewBadge) {
-      return PulsingBadge(child: badge);
-    }
-
+    if (isNewBadge) return PulsingBadge(child: badge);
     return badge;
   }
 }

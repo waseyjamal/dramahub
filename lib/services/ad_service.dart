@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'package:drama_hub/models/ad_config_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/services/cas_service.dart';
-import 'package:stack_appodeal_flutter/stack_appodeal_flutter.dart';
+import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 import 'ad_config_service.dart';
 
 class AdService extends GetxService {
   static AdService get instance => Get.find<AdService>();
 
-  static const String _appKey =
-      '6a73151827ab64c724ed4211304766dbc57b48d249c6b217';
+  static const String _appKey = '25d9acedd';
 
   int _interstitialShownCount = 0;
   DateTime? _lastInterstitialTime;
@@ -49,88 +47,65 @@ class AdService extends GetxService {
     _sessionStartTime = DateTime.now();
   }
 
-  Future<void> _initAppodeal() async {
-    Appodeal.setTesting(!kReleaseMode);
-    Appodeal.setLogLevel(
-      kReleaseMode ? Appodeal.LogLevelNone : Appodeal.LogLevelVerbose,
-    );
-    // Appodeal.setAutoCache(AppodealAdType.Interstitial, true); // DISABLED — 0.5% fill rate
-    Appodeal.setAutoCache(AppodealAdType.RewardedVideo, true);
+  // ── LevelPlay interstitial ad unit ──
+  LevelPlayInterstitialAd? _interstitialAd;
+  static const String _interstitialAdUnitId = '9376lcqwbkl99r6v';
 
-    // DISABLED — Appodeal Interstitial commented out (0.5% fill rate)
-    // Appodeal.setInterstitialCallbacks(
-    //   onInterstitialLoaded: (isPrecache) { if (kDebugMode) { debugPrint('✅ Interstitial loaded'); } },
-    //   onInterstitialFailedToLoad: () { if (kDebugMode) { debugPrint('❌ Interstitial failed to load'); } },
-    //   onInterstitialShown: () { if (kDebugMode) { debugPrint('▶️ Interstitial shown'); } },
-    //   onInterstitialClosed: () { if (kDebugMode) { debugPrint('✅ Interstitial closed'); } },
-    //   onInterstitialShowFailed: () { if (kDebugMode) { debugPrint('❌ Interstitial failed to show'); } },
-    //   onInterstitialClicked: () { if (kDebugMode) { debugPrint('👆 Interstitial clicked'); } },
-    //   onInterstitialExpired: () { if (kDebugMode) { debugPrint('⏰ Interstitial expired'); } },
-    // );
+  // ── LevelPlay rewarded ad unit ──
+  LevelPlayRewardedAd? _rewardedAd;
+  static const String _rewardedAdUnitId = '8ask2oenzoqbxo09';
 
-    Appodeal.setRewardedVideoCallbacks(
-      onRewardedVideoLoaded: (isPrecache) {
-        if (kDebugMode) {
-          debugPrint('✅ Rewarded loaded');
-        }
-      },
-      onRewardedVideoFailedToLoad: () {
-        if (kDebugMode) {
-          debugPrint('❌ Rewarded failed to load');
-        }
-      },
-      onRewardedVideoShown: () {
-        if (kDebugMode) {
-          debugPrint('▶️ Rewarded shown');
-        }
-      },
-      onRewardedVideoClosed: (isFinished) {
-        if (kDebugMode) {
-          debugPrint('✅ Rewarded closed finished:$isFinished');
-        }
-      },
-      onRewardedVideoShowFailed: () {
-        if (kDebugMode) {
-          debugPrint('❌ Rewarded failed to show');
-        }
-      },
-      onRewardedVideoClicked: () {
-        if (kDebugMode) {
-          debugPrint('👆 Rewarded clicked');
-        }
-      },
-      onRewardedVideoExpired: () {
-        if (kDebugMode) {
-          debugPrint('⏰ Rewarded expired');
-        }
-      },
-      onRewardedVideoFinished: (amount, reward) {
-        if (kDebugMode) {
-          debugPrint('🎁 Reward earned: $amount $reward');
-        }
-      },
-    );
+  Future<void> _initLevelPlay() async {
+    try {
+      final initRequest = LevelPlayInitRequest.builder(_appKey).build();
+      await LevelPlay.init(
+        initRequest: initRequest,
+        initListener: _LevelPlayInitListener(
+          onSuccess: () {
+            if (kDebugMode) debugPrint('✅ LevelPlay initialized');
+            _loadInterstitial();
+            _loadRewarded();
+          },
+          onFailed: (error) {
+            if (kDebugMode) debugPrint('❌ LevelPlay init failed: $error');
+          },
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ LevelPlay init error: $e');
+    }
+  }
 
-    await Appodeal.initialize(
-      appKey: _appKey,
-      adTypes: [
-        // AppodealAdType.Interstitial, // DISABLED — 0.5% fill rate
-        AppodealAdType.RewardedVideo,
-      ],
-      onInitializationFinished: (errors) {
-        if (errors == null || errors.isEmpty) {
-          if (kDebugMode) {
-            debugPrint('✅ Appodeal initialized successfully');
-          }
-        } else {
-          for (var error in errors) {
-            if (kDebugMode) {
-              debugPrint('❌ Appodeal init error: ${error.description}');
-            }
-          }
-        }
-      },
+  void _loadInterstitial() {
+    _interstitialAd = LevelPlayInterstitialAd(adUnitId: _interstitialAdUnitId);
+    _interstitialAd!.setListener(
+      _InterstitialListener(
+        onLoaded: () {
+          if (kDebugMode) debugPrint('✅ LevelPlay Interstitial loaded');
+        },
+        onFailed: () {
+          if (kDebugMode) debugPrint('❌ LevelPlay Interstitial failed to load');
+        },
+      ),
     );
+    _interstitialAd!.loadAd();
+  }
+
+  void _loadRewarded() {
+    _rewardedAd = LevelPlayRewardedAd(adUnitId: _rewardedAdUnitId);
+    _rewardedAd!.setListener(
+      _RewardedListener(
+        onLoaded: () {
+          if (kDebugMode) debugPrint('✅ LevelPlay Rewarded loaded');
+        },
+        onFailed: () {
+          if (kDebugMode) debugPrint('❌ LevelPlay Rewarded failed to load');
+        },
+        onRewarded: () {},
+        onClosed: () {},
+      ),
+    );
+    _rewardedAd!.loadAd();
   }
 
   Future<void> showInterstitialForScreen(String screenKey) async {
@@ -145,79 +120,54 @@ class AdService extends GetxService {
       if (elapsed.inSeconds < config.cooldownSeconds) return;
     }
 
-    // Priority 1
-    if (config.priority1Enabled) {
-      if (config.priority1 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-        if (canShow) {
-          await Appodeal.show(AppodealAdType.Interstitial);
-          _interstitialShownCount++;
-          _lastInterstitialTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Interstitial shown via Appodeal on $screenKey');
-          }
-          return;
-        }
+    if (config.priority1Enabled &&
+        config.priority1 == 'levelplay' &&
+        _cfg.config.adNetworks.levelplayEnabled) {
+      if (_interstitialAd != null && await _interstitialAd!.isAdReady()) {
+        final completer = Completer<void>();
+        _interstitialAd!.setListener(
+          _InterstitialListener(
+            onLoaded: () {},
+            onFailed: () {},
+            onClosed: () {
+              if (!completer.isCompleted) completer.complete();
+              _loadInterstitial();
+            },
+            onShowFailed: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          ),
+        );
+        await _interstitialAd!.showAd();
+        await completer.future.timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {},
+        );
+        _interstitialShownCount++;
+        _lastInterstitialTime = DateTime.now();
         if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal Interstitial not ready, trying fallback');
+          debugPrint('✅ Interstitial shown via LevelPlay on $screenKey');
         }
-      } else if (config.priority1 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showInterstitialFallback();
-        if (shown) {
-          _interstitialShownCount++;
-          _lastInterstitialTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Interstitial shown via CAS on $screenKey');
-          }
-          return;
-        }
+        return;
+      }
+      if (kDebugMode) debugPrint('ℹ️ LevelPlay Interstitial not ready');
+    }
+
+    if (config.priority2Enabled &&
+        config.priority2 == 'cas' &&
+        _cfg.config.adNetworks.casEnabled) {
+      final shown = await CasService.instance.showInterstitialFallback();
+      if (shown) {
+        _interstitialShownCount++;
+        _lastInterstitialTime = DateTime.now();
         if (kDebugMode) {
-          debugPrint('ℹ️ CAS Interstitial not ready, trying fallback');
+          debugPrint('✅ Interstitial shown via CAS on $screenKey');
         }
+        return;
       }
     }
 
-    // Priority 2
-    if (config.priority2Enabled) {
-      if (config.priority2 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-        if (canShow) {
-          await Appodeal.show(AppodealAdType.Interstitial);
-          _interstitialShownCount++;
-          _lastInterstitialTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint(
-              '✅ Interstitial shown via Appodeal fallback on $screenKey',
-            );
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal Interstitial fallback not ready');
-        }
-      } else if (config.priority2 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showInterstitialFallback();
-        if (shown) {
-          _interstitialShownCount++;
-          _lastInterstitialTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Interstitial shown via CAS fallback on $screenKey');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ CAS Interstitial fallback not ready');
-        }
-      }
-    }
-
-    if (kDebugMode) {
-      debugPrint('ℹ️ No Interstitial available on $screenKey');
-    }
+    if (kDebugMode) debugPrint('ℹ️ No Interstitial available on $screenKey');
   }
 
   Future<void> showRewardedForScreen(
@@ -233,142 +183,77 @@ class AdService extends GetxService {
       onNotAvailable?.call();
       return;
     }
-
     _checkSessionReset();
-    final rewardedConfig = _cfg.config.rewarded;
-    if (_rewardedShownCount >= rewardedConfig.maxPerSession) {
-      if (kDebugMode) {
-        debugPrint('ℹ️ Rewarded max per session reached');
-      }
+
+    final config = _cfg.config.rewarded;
+    if (_rewardedShownCount >= config.maxPerSession) {
       onNotAvailable?.call();
       return;
     }
     if (_lastRewardedTime != null) {
       final elapsed = DateTime.now().difference(_lastRewardedTime!);
-      if (elapsed.inSeconds < rewardedConfig.cooldownSeconds) {
-        if (kDebugMode) {
-          debugPrint('ℹ️ Rewarded cooldown active');
-        }
+      if (elapsed.inSeconds < config.cooldownSeconds) {
         onNotAvailable?.call();
         return;
       }
     }
 
-    // Priority 1
-    if (rewardedConfig.priority1Enabled) {
-      if (rewardedConfig.priority1 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-        if (canShow) {
-          bool rewardGranted = false;
-          Appodeal.setRewardedVideoCallbacks(
-            onRewardedVideoFinished: (amount, reward) {
-              if (kDebugMode) {
-                debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
-              }
+    if (config.priority1Enabled &&
+        config.priority1 == 'levelplay' &&
+        _cfg.config.adNetworks.levelplayEnabled) {
+      if (_rewardedAd != null && await _rewardedAd!.isAdReady()) {
+        bool rewardGranted = false;
+        final completer = Completer<void>();
+        _rewardedAd!.setListener(
+          _RewardedListener(
+            onLoaded: () {},
+            onFailed: () {},
+            onRewarded: () {
               rewardGranted = true;
               onRewarded();
             },
-            onRewardedVideoClosed: (isFinished) {
+            onClosed: () {
               if (!rewardGranted) onNotAvailable?.call();
+              if (!completer.isCompleted) completer.complete();
+              _loadRewarded();
             },
-            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
-            onRewardedVideoLoaded: (isPrecache) {},
-            onRewardedVideoFailedToLoad: () {},
-            onRewardedVideoShown: () {},
-            onRewardedVideoClicked: () {},
-            onRewardedVideoExpired: () {},
-          );
-          await Appodeal.show(AppodealAdType.RewardedVideo);
-          _rewardedShownCount++;
-          _lastRewardedTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Rewarded shown via Appodeal on $screenKey');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal Rewarded not ready, trying fallback');
-        }
-      } else if (rewardedConfig.priority1 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: onRewarded,
-          onNotAvailable: onNotAvailable,
+            onShowFailed: () {
+              onNotAvailable?.call();
+              if (!completer.isCompleted) completer.complete();
+            },
+          ),
         );
-        if (shown) {
-          _rewardedShownCount++;
-          _lastRewardedTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Rewarded shown via CAS on $screenKey');
-          }
-          return;
-        }
+        await _rewardedAd!.showAd();
+        await completer.future.timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {},
+        );
+        _rewardedShownCount++;
+        _lastRewardedTime = DateTime.now();
         if (kDebugMode) {
-          debugPrint('ℹ️ CAS Rewarded not ready, trying fallback');
+          debugPrint('✅ Rewarded shown via LevelPlay on $screenKey');
         }
+        return;
+      }
+      if (kDebugMode) debugPrint('ℹ️ LevelPlay Rewarded not ready');
+    }
+
+    if (config.priority2Enabled &&
+        config.priority2 == 'cas' &&
+        _cfg.config.adNetworks.casEnabled) {
+      final shown = await CasService.instance.showRewardedFallback(
+        onRewarded: onRewarded,
+        onNotAvailable: onNotAvailable,
+      );
+      if (shown) {
+        _rewardedShownCount++;
+        _lastRewardedTime = DateTime.now();
+        if (kDebugMode) debugPrint('✅ Rewarded shown via CAS on $screenKey');
+        return;
       }
     }
 
-    // Priority 2
-    if (rewardedConfig.priority2Enabled) {
-      if (rewardedConfig.priority2 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-        if (canShow) {
-          bool rewardGranted = false;
-          Appodeal.setRewardedVideoCallbacks(
-            onRewardedVideoFinished: (amount, reward) {
-              if (kDebugMode) {
-                debugPrint('🎁 Reward earned on $screenKey: $amount $reward');
-              }
-              rewardGranted = true;
-              onRewarded();
-            },
-            onRewardedVideoClosed: (isFinished) {
-              if (!rewardGranted) onNotAvailable?.call();
-            },
-            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
-            onRewardedVideoLoaded: (isPrecache) {},
-            onRewardedVideoFailedToLoad: () {},
-            onRewardedVideoShown: () {},
-            onRewardedVideoClicked: () {},
-            onRewardedVideoExpired: () {},
-          );
-          await Appodeal.show(AppodealAdType.RewardedVideo);
-          _rewardedShownCount++;
-          _lastRewardedTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Rewarded shown via Appodeal fallback on $screenKey');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal Rewarded fallback not ready');
-        }
-      } else if (rewardedConfig.priority2 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: onRewarded,
-          onNotAvailable: onNotAvailable,
-        );
-        if (shown) {
-          _rewardedShownCount++;
-          _lastRewardedTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Rewarded shown via CAS fallback on $screenKey');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ CAS Rewarded fallback not ready');
-        }
-      }
-    }
-
-    if (kDebugMode) {
-      debugPrint('ℹ️ No Rewarded available on $screenKey');
-    }
+    if (kDebugMode) debugPrint('ℹ️ No Rewarded available on $screenKey');
     onNotAvailable?.call();
   }
 
@@ -380,400 +265,157 @@ class AdService extends GetxService {
       onNotAvailable?.call();
       return;
     }
-
     final downloadConfig = _cfg.config.download;
     if (!downloadConfig.enabled) {
       onNotAvailable?.call();
       return;
     }
-
     _checkSessionReset();
-
     if (_downloadShownCount >= downloadConfig.maxPerSession) {
-      if (kDebugMode) {
-        debugPrint('ℹ️ Download rewarded max per session reached');
-      }
       onNotAvailable?.call();
       return;
     }
-
     if (_lastDownloadTime != null) {
       final elapsed = DateTime.now().difference(_lastDownloadTime!);
       if (elapsed.inSeconds < downloadConfig.cooldownSeconds) {
-        if (kDebugMode) {
-          debugPrint('ℹ️ Download rewarded cooldown active');
-        }
         onNotAvailable?.call();
         return;
       }
     }
 
-    // Priority 1
-    if (downloadConfig.priority1Enabled) {
-      if (downloadConfig.priority1 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-        if (canShow) {
-          bool rewardGranted = false;
-          Appodeal.setRewardedVideoCallbacks(
-            onRewardedVideoFinished: (amount, reward) {
-              if (kDebugMode) {
-                debugPrint(
-                  '🎁 Download reward earned via Appodeal: $amount $reward',
-                );
-              }
+    if (downloadConfig.priority1Enabled &&
+        downloadConfig.priority1 == 'levelplay' &&
+        _cfg.config.adNetworks.levelplayEnabled) {
+      if (_rewardedAd != null && await _rewardedAd!.isAdReady()) {
+        bool rewardGranted = false;
+        final completer = Completer<void>();
+        _rewardedAd!.setListener(
+          _RewardedListener(
+            onLoaded: () {},
+            onFailed: () {},
+            onRewarded: () {
               rewardGranted = true;
               onRewarded();
             },
-            onRewardedVideoClosed: (isFinished) {
+            onClosed: () {
               if (!rewardGranted) onNotAvailable?.call();
+              if (!completer.isCompleted) completer.complete();
+              _loadRewarded();
             },
-            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
-            onRewardedVideoLoaded: (isPrecache) {},
-            onRewardedVideoFailedToLoad: () {},
-            onRewardedVideoShown: () {},
-            onRewardedVideoClicked: () {},
-            onRewardedVideoExpired: () {},
-          );
-          await Appodeal.show(AppodealAdType.RewardedVideo);
-          _downloadShownCount++;
-          _lastDownloadTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Download rewarded shown via Appodeal');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal not ready for download, trying fallback');
-        }
-      } else if (downloadConfig.priority1 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: onRewarded,
-          onNotAvailable: onNotAvailable,
+            onShowFailed: () {
+              onNotAvailable?.call();
+              if (!completer.isCompleted) completer.complete();
+            },
+          ),
         );
-        if (shown) {
-          _downloadShownCount++;
-          _lastDownloadTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Download rewarded shown via CAS');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ CAS not ready for download, trying fallback');
-        }
+        await _rewardedAd!.showAd();
+        await completer.future.timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {},
+        );
+        _downloadShownCount++;
+        _lastDownloadTime = DateTime.now();
+        if (kDebugMode) debugPrint('✅ Download rewarded shown via LevelPlay');
+        return;
       }
     }
 
-    // Priority 2
-    if (downloadConfig.priority2Enabled) {
-      if (downloadConfig.priority2 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-        if (canShow) {
-          bool rewardGranted = false;
-          Appodeal.setRewardedVideoCallbacks(
-            onRewardedVideoFinished: (amount, reward) {
-              if (kDebugMode) {
-                debugPrint(
-                  '🎁 Download reward earned via Appodeal fallback: $amount $reward',
-                );
-              }
-              rewardGranted = true;
-              onRewarded();
-            },
-            onRewardedVideoClosed: (isFinished) {
-              if (!rewardGranted) onNotAvailable?.call();
-            },
-            onRewardedVideoShowFailed: () => onNotAvailable?.call(),
-            onRewardedVideoLoaded: (isPrecache) {},
-            onRewardedVideoFailedToLoad: () {},
-            onRewardedVideoShown: () {},
-            onRewardedVideoClicked: () {},
-            onRewardedVideoExpired: () {},
-          );
-          await Appodeal.show(AppodealAdType.RewardedVideo);
-          _downloadShownCount++;
-          _lastDownloadTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Download rewarded shown via Appodeal fallback');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ Appodeal fallback not ready for download');
-        }
-      } else if (downloadConfig.priority2 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: onRewarded,
-          onNotAvailable: onNotAvailable,
-        );
-        if (shown) {
-          _downloadShownCount++;
-          _lastDownloadTime = DateTime.now();
-          if (kDebugMode) {
-            debugPrint('✅ Download rewarded shown via CAS fallback');
-          }
-          return;
-        }
-        if (kDebugMode) {
-          debugPrint('ℹ️ CAS fallback not ready for download');
-        }
+    if (downloadConfig.priority2Enabled &&
+        downloadConfig.priority2 == 'cas' &&
+        _cfg.config.adNetworks.casEnabled) {
+      final shown = await CasService.instance.showRewardedFallback(
+        onRewarded: onRewarded,
+        onNotAvailable: onNotAvailable,
+      );
+      if (shown) {
+        _downloadShownCount++;
+        _lastDownloadTime = DateTime.now();
+        return;
       }
     }
 
-    if (kDebugMode) {
-      debugPrint('ℹ️ No rewarded available for download');
-    }
     onNotAvailable?.call();
   }
 
-  /// Shows interstitial or rewarded ad for offline episode playback.
-  /// Completely separate from all other ad systems.
-  /// Returns true if ad was shown, false if skipped.
   Future<void> showOfflineAd({required VoidCallback onComplete}) async {
     if (!_cfg.adsEnabled) {
       onComplete();
       return;
     }
-
     final offlineCfg = _cfg.offlineAds;
     if (!offlineCfg.enabled) {
       onComplete();
       return;
     }
-
     _checkSessionReset();
-
-    // ✅ Check session cool period
     if (_lastOfflineAdTime != null) {
       final elapsed = DateTime.now().difference(_lastOfflineAdTime!);
       if (elapsed.inMinutes < offlineCfg.sessionCoolMinutes) {
-        if (kDebugMode) {
-          debugPrint('ℹ️ Offline ad session cool active');
-        }
         onComplete();
         return;
       }
     }
-
-    // ✅ Check max per session
     if (_offlineAdShownCount >= offlineCfg.maxPerSession) {
-      if (kDebugMode) {
-        debugPrint('ℹ️ Offline ad max per session reached');
-      }
       onComplete();
       return;
     }
 
-    // ✅ Route to correct ad type
     if (offlineCfg.adType == 'rewarded') {
-      await _showOfflineRewarded(
-        offlineCfg: offlineCfg,
-        onComplete: onComplete,
-      );
+      if (_rewardedAd != null && await _rewardedAd!.isAdReady()) {
+        final completer = Completer<void>();
+        _rewardedAd!.setListener(
+          _RewardedListener(
+            onLoaded: () {},
+            onFailed: () {},
+            onRewarded: () {},
+            onClosed: () {
+              if (!completer.isCompleted) completer.complete();
+              _loadRewarded();
+            },
+            onShowFailed: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          ),
+        );
+        await _rewardedAd!.showAd();
+        await completer.future.timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {},
+        );
+        _offlineAdShownCount++;
+        _lastOfflineAdTime = DateTime.now();
+      }
     } else {
-      await _showOfflineInterstitial(
-        offlineCfg: offlineCfg,
-        onComplete: onComplete,
-      );
-    }
-  }
-
-  Future<void> _showOfflineInterstitial({
-    required OfflineAdConfig offlineCfg,
-    required VoidCallback onComplete,
-  }) async {
-    Future<bool> tryAppodealInterstitial() async {
-      final canShow = await Appodeal.canShow(AppodealAdType.Interstitial);
-      if (!canShow) return false;
-      final completer = Completer<bool>();
-      Appodeal.setInterstitialCallbacks(
-        onInterstitialShown: () {},
-        onInterstitialClosed: () {
-          if (!completer.isCompleted) completer.complete(true);
-        },
-        onInterstitialShowFailed: () {
-          if (!completer.isCompleted) completer.complete(false);
-        },
-        onInterstitialLoaded: (_) {},
-        onInterstitialFailedToLoad: () {},
-        onInterstitialClicked: () {},
-        onInterstitialExpired: () {},
-      );
-      await Appodeal.show(AppodealAdType.Interstitial);
-      return completer.future;
-    }
-
-    // Priority 1
-    if (offlineCfg.priority1Enabled) {
-      if (offlineCfg.priority1 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final shown = await tryAppodealInterstitial();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline interstitial via Appodeal');
-          onComplete();
-          return;
-        }
-      } else if (offlineCfg.priority1 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showInterstitialFallback();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline interstitial via CAS');
-          onComplete();
-          return;
-        }
-      }
-    }
-
-    // Priority 2
-    if (offlineCfg.priority2Enabled) {
-      if (offlineCfg.priority2 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final shown = await tryAppodealInterstitial();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline interstitial via Appodeal P2');
-          onComplete();
-          return;
-        }
-      } else if (offlineCfg.priority2 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final shown = await CasService.instance.showInterstitialFallback();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline interstitial via CAS P2');
-          onComplete();
-          return;
-        }
-      }
-    }
-
-    if (kDebugMode) debugPrint('ℹ️ No offline interstitial available');
-    onComplete();
-  }
-
-  Future<void> _showOfflineRewarded({
-    required OfflineAdConfig offlineCfg,
-    required VoidCallback onComplete,
-  }) async {
-    bool rewardGranted = false;
-
-    Future<bool> tryAppodeal() async {
-      final canShow = await Appodeal.canShow(AppodealAdType.RewardedVideo);
-      if (!canShow) return false;
-      final completer = Completer<bool>();
-      Appodeal.setRewardedVideoCallbacks(
-        onRewardedVideoFinished: (amount, reward) {
-          rewardGranted = true;
-        },
-        onRewardedVideoClosed: (isFinished) {
-          if (!completer.isCompleted) completer.complete(rewardGranted);
-        },
-        onRewardedVideoShowFailed: () {
-          if (!completer.isCompleted) completer.complete(false);
-        },
-        onRewardedVideoLoaded: (_) {},
-        onRewardedVideoFailedToLoad: () {},
-        onRewardedVideoShown: () {},
-        onRewardedVideoClicked: () {},
-        onRewardedVideoExpired: () {},
-      );
-      await Appodeal.show(AppodealAdType.RewardedVideo);
-      return completer.future;
-    }
-
-    // Priority 1
-    if (offlineCfg.priority1Enabled) {
-      if (offlineCfg.priority1 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final shown = await tryAppodeal();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline rewarded via Appodeal');
-          onComplete();
-          return;
-        }
-      } else if (offlineCfg.priority1 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final completer = Completer<bool>();
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: () {
-            if (!completer.isCompleted) completer.complete(true);
-          },
-          onNotAvailable: () {
-            if (!completer.isCompleted) completer.complete(false);
-          },
+      if (_interstitialAd != null && await _interstitialAd!.isAdReady()) {
+        final completer = Completer<void>();
+        _interstitialAd!.setListener(
+          _InterstitialListener(
+            onLoaded: () {},
+            onFailed: () {},
+            onClosed: () {
+              if (!completer.isCompleted) completer.complete();
+              _loadInterstitial();
+            },
+            onShowFailed: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          ),
         );
-        if (shown) {
-          final rewarded = await completer.future;
-          if (rewarded) {
-            _offlineAdShownCount++;
-            _lastOfflineAdTime = DateTime.now();
-            if (kDebugMode) debugPrint('✅ Offline rewarded via CAS');
-            onComplete();
-            return;
-          }
-        }
-      }
-    }
-
-    // Priority 2
-    if (offlineCfg.priority2Enabled) {
-      if (offlineCfg.priority2 == 'appodeal' &&
-          _cfg.config.adNetworks.appodealEnabled) {
-        final shown = await tryAppodeal();
-        if (shown) {
-          _offlineAdShownCount++;
-          _lastOfflineAdTime = DateTime.now();
-          if (kDebugMode) debugPrint('✅ Offline rewarded via Appodeal P2');
-          onComplete();
-          return;
-        }
-      } else if (offlineCfg.priority2 == 'cas' &&
-          _cfg.config.adNetworks.casEnabled) {
-        final completer = Completer<bool>();
-        final shown = await CasService.instance.showRewardedFallback(
-          onRewarded: () {
-            if (!completer.isCompleted) completer.complete(true);
-          },
-          onNotAvailable: () {
-            if (!completer.isCompleted) completer.complete(false);
-          },
+        await _interstitialAd!.showAd();
+        await completer.future.timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {},
         );
-        if (shown) {
-          final rewarded = await completer.future;
-          if (rewarded) {
-            _offlineAdShownCount++;
-            _lastOfflineAdTime = DateTime.now();
-            if (kDebugMode) debugPrint('✅ Offline rewarded via CAS P2');
-            onComplete();
-            return;
-          }
-        }
+        _offlineAdShownCount++;
+        _lastOfflineAdTime = DateTime.now();
       }
     }
-
-    if (kDebugMode) debugPrint('ℹ️ No offline rewarded available');
-    // Rewarded not available → play directly, never block user
     onComplete();
   }
 
   Future<void> showAppOpen() async {
-    if (!_cfg.adsEnabled) return;
-    if (!_cfg.appOpenEnabled) return;
-    if (_cfg.config.adNetworks.casEnabled) {
-      await CasService.instance.showAppOpen();
-    }
+    // App Open disabled — no supported Flutter SDK for direct Liftoff calls
+    // Will be enabled when official Flutter plugin becomes available
   }
 
   @override
@@ -781,7 +423,85 @@ class AdService extends GetxService {
     super.onInit();
     _sessionStartTime = DateTime.now();
     if (_cfg.adsEnabled) {
-      _initAppodeal();
+      _initLevelPlay();
     }
   }
+}
+
+class _InterstitialListener with LevelPlayInterstitialAdListener {
+  final VoidCallback onLoaded;
+  final VoidCallback onFailed;
+  final VoidCallback? onClosed;
+  final VoidCallback? onShowFailed;
+
+  _InterstitialListener({
+    required this.onLoaded,
+    required this.onFailed,
+    this.onClosed,
+    this.onShowFailed,
+  });
+
+  @override
+  void onAdLoaded(LevelPlayAdInfo adInfo) => onLoaded();
+  @override
+  void onAdLoadFailed(LevelPlayAdError error) => onFailed();
+  @override
+  void onAdDisplayed(LevelPlayAdInfo adInfo) {}
+  @override
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
+      onShowFailed?.call();
+  @override
+  void onAdClicked(LevelPlayAdInfo adInfo) {}
+  @override
+  void onAdClosed(LevelPlayAdInfo adInfo) => onClosed?.call();
+  @override
+  void onAdInfoChanged(LevelPlayAdInfo adInfo) {}
+}
+
+class _RewardedListener with LevelPlayRewardedAdListener {
+  final VoidCallback onLoaded;
+  final VoidCallback onFailed;
+  final VoidCallback onRewarded;
+  final VoidCallback onClosed;
+  final VoidCallback? onShowFailed;
+
+  _RewardedListener({
+    required this.onLoaded,
+    required this.onFailed,
+    required this.onRewarded,
+    required this.onClosed,
+    this.onShowFailed,
+  });
+
+  @override
+  void onAdLoaded(LevelPlayAdInfo adInfo) => onLoaded();
+  @override
+  void onAdLoadFailed(LevelPlayAdError error) => onFailed();
+  @override
+  void onAdDisplayed(LevelPlayAdInfo adInfo) {}
+  @override
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
+      onShowFailed?.call();
+  @override
+  void onAdClicked(LevelPlayAdInfo adInfo) {}
+  @override
+  void onAdClosed(LevelPlayAdInfo adInfo) => onClosed();
+  @override
+  void onAdInfoChanged(LevelPlayAdInfo adInfo) {}
+  @override
+  void onAdRewarded(LevelPlayReward reward, LevelPlayAdInfo adInfo) =>
+      onRewarded();
+}
+
+class _LevelPlayInitListener with LevelPlayInitListener {
+  final VoidCallback onSuccess;
+  final void Function(LevelPlayInitError?) onFailed;
+
+  _LevelPlayInitListener({required this.onSuccess, required this.onFailed});
+
+  @override
+  void onInitSuccess(LevelPlayConfiguration configuration) => onSuccess();
+
+  @override
+  void onInitFailed(LevelPlayInitError error) => onFailed(error);
 }

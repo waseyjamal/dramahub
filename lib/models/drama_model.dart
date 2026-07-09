@@ -8,11 +8,15 @@ class DramaModel {
   final String genre;
   final double rating;
   final int releaseYear;
-
   final bool isActive;
   final int order;
   final String posterImage;
   final String bannerImage;
+
+  // Coming Soon fields
+  final bool isComingSoon;
+  final String? premiereDate;
+  final String? addedOn;
 
   DramaModel({
     required this.id,
@@ -27,10 +31,12 @@ class DramaModel {
     this.order = 0,
     String? posterImage,
     String? bannerImage,
+    this.isComingSoon = false,
+    this.premiereDate,
+    this.addedOn,
   }) : posterImage = posterImage ?? imageUrl,
        bannerImage = bannerImage ?? imageUrl;
 
-  /// Convert from JSON
   factory DramaModel.fromJson(Map<String, dynamic> json) {
     return DramaModel(
       id: json['id'] ?? '',
@@ -41,16 +47,16 @@ class DramaModel {
       genre: json['genre'] ?? '',
       rating: (json['rating'] ?? 0.0).toDouble(),
       releaseYear: json['releaseYear'] ?? 0,
-      isActive: json['isActive'] ?? true, // Default to true if missing
+      isActive: json['isActive'] ?? true,
       order: json['order'] ?? 0,
-      posterImage:
-          json['posterImage'], // Constructor handles fallback to imageUrl
-      bannerImage:
-          json['bannerImage'], // Constructor handles fallback to imageUrl
+      posterImage: json['posterImage'],
+      bannerImage: json['bannerImage'],
+      isComingSoon: json['isComingSoon'] ?? false,
+      premiereDate: json['premiereDate'],
+      addedOn: json['addedOn'],
     );
   }
 
-  /// Convert to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -65,6 +71,9 @@ class DramaModel {
       'order': order,
       'posterImage': posterImage,
       'bannerImage': bannerImage,
+      'isComingSoon': isComingSoon,
+      'premiereDate': premiereDate,
+      'addedOn': addedOn,
     };
   }
 }

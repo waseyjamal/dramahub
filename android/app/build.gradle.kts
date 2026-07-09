@@ -4,7 +4,6 @@ plugins {
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
-    id("com.cleveradssolutions.gradle-plugin")
 }
 // Load local.properties
 val localProperties = Properties()
@@ -37,8 +36,8 @@ android {
         applicationId = "com.dramahub.drama_hub"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.0.9"
+        versionCode = 11
+        versionName = "1.1.0"
         multiDexEnabled = true
     }
     buildTypes {
@@ -58,31 +57,24 @@ flutter {
 }
 
 
-cas {
-    useAdvertisingId = true
-    adapters {
-        appLovin = true 
-        bigoAds = true
-        casExchange = true
-        chartboost = true
-        dtExchange = true
-        googleAds = true
-        inMobi = true
-        ironSource = true
-        liftoffMonetize = true
-        mintegral = true
-        smaato = true
-        verve = true
-    }
-}
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("com.android.installreferrer:installreferrer:2.2")
-    implementation("com.appodeal.ads.sdk:core:4.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:applovin:13.5.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:applovin_max:13.5.1.1")
-    implementation("com.appodeal.ads.sdk.adapters:bidmachine:3.6.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:iab:1.8.1.0")
-    implementation("com.appodeal.ads.sdk.adapters:sentry_analytics:8.26.0.0")
-    implementation("com.appodeal.ads.sdk.adapters:inmobi:11.1.0.0")
+    implementation("com.unity3d.ads-mediation:mediation-sdk:9.4.3")
+
+    // UnityAds
+    implementation("com.unity3d.ads-mediation:unityads-adapter:5.9.0")
+    implementation("com.unity3d.ads:unity-ads:4.18.1")
+
+    // Chartboost
+    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.6.0")
+    implementation("com.chartboost:chartboost-sdk:9.12.1")
+
+    // InMobi
+    implementation("com.unity3d.ads-mediation:inmobi-adapter:5.7.0")
+    implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.3.0")
+
+    // Liftoff (Vungle)
+    implementation("com.unity3d.ads-mediation:vungle-adapter:5.10.0")
+    implementation("com.vungle:vungle-ads:7.7.4")
 }

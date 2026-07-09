@@ -56,15 +56,14 @@ Future<void> main() async {
       onTimeout: () => false,
     ),
     AdConfigService.instance.initialize(),
-    // CAS init runs in parallel with config fetches during splash
-    CasService.instance.initEarly().timeout(
-      const Duration(seconds: 3),
-      onTimeout: () {
-        if (kDebugMode) {
-          debugPrint('ℹ️ CAS pre-load timed out — continuing');
-        }
-      },
-    ),
+    // CasService.instance.initEarly().timeout(
+    //   const Duration(seconds: 3),
+    //   onTimeout: () {
+    //     if (kDebugMode) {
+    //       debugPrint('ℹ️ CAS pre-load timed out — continuing');
+    //     }
+    //   },
+    // ),
   ]);
 
   // ✅ Initialize download service
@@ -167,7 +166,7 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       AdConfigService.instance.refresh().then((_) {
-        CasService.instance.refreshAdLoad();
+        // CasService.instance.refreshAdLoad(); // CAS disabled
         AdService.instance.showAppOpen();
       });
     }

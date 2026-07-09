@@ -30,6 +30,8 @@ class HomeController extends GetxController {
   final RxList<DramaModel> allDramas = <DramaModel>[].obs;
   final RxList<DramaModel> filteredDramas = <DramaModel>[].obs;
   final RxList<DramaModel> heroSliderDramas = <DramaModel>[].obs;
+  final RxList<DramaModel> comingSoonDramas = <DramaModel>[].obs;
+  final RxList<DramaModel> newDramas = <DramaModel>[].obs;
 
   final RxList<Map<String, dynamic>> latestEpisodes =
       <Map<String, dynamic>>[].obs;
@@ -142,12 +144,29 @@ class HomeController extends GetxController {
         final cached = await _loadCachedDramas();
         if (cached.isNotEmpty) {
           if (kDebugMode) { debugPrint('Drama cache hit — ${cached.length} dramas'); }
-          allDramas.assignAll(cached);
+          final now = DateTime.now();
+          final comingSoonCached = cached.where((d) {
+            if (!d.isComingSoon) return false;
+            if (d.premiereDate == null || d.premiereDate!.isEmpty) return true;
+            final premiere = DateTime.tryParse(d.premiereDate!);
+            if (premiere == null) return true;
+            return now.isBefore(premiere);
+          }).toList();
+          final regularCached = cached.where((d) {
+            if (!d.isComingSoon) return true;
+            if (d.premiereDate == null || d.premiereDate!.isEmpty) return false;
+            final premiere = DateTime.tryParse(d.premiereDate!);
+            if (premiere == null) return false;
+            return !now.isBefore(premiere);
+          }).toList();
+          comingSoonDramas.assignAll(comingSoonCached);
+          allDramas.assignAll(regularCached);
           _currentPage.value = 1;
-          hasMoreDramas.value = cached.length > _pageSize;
-          filteredDramas.assignAll(cached.take(_pageSize).toList());
-          _resolveHeroSlider(cached);
+          hasMoreDramas.value = regularCached.length > _pageSize;
+          filteredDramas.assignAll(regularCached.take(_pageSize).toList());
+          _resolveHeroSlider(regularCached);
           // ✅ Background refresh latest episodes even on cache hit
+          _resolveNewDramas(cached);
           _loadLatestEpisodes(cached);
           isLoading.value = false;
           return;
@@ -158,14 +177,32 @@ class HomeController extends GetxController {
       final activeDramas = loadedDramas.where((d) => d.isActive).toList()
         ..sort((a, b) => a.order.compareTo(b.order));
 
-      allDramas.assignAll(activeDramas);
+      final now = DateTime.now();
+      final comingSoon = activeDramas.where((d) {
+        if (!d.isComingSoon) return false;
+        if (d.premiereDate == null || d.premiereDate!.isEmpty) return true;
+        final premiere = DateTime.tryParse(d.premiereDate!);
+        if (premiere == null) return true;
+        return now.isBefore(premiere);
+      }).toList();
+      final regularDramas = activeDramas.where((d) {
+        if (!d.isComingSoon) return true;
+        if (d.premiereDate == null || d.premiereDate!.isEmpty) return false;
+        final premiere = DateTime.tryParse(d.premiereDate!);
+        if (premiere == null) return false;
+        return !now.isBefore(premiere);
+      }).toList();
+
+      comingSoonDramas.assignAll(comingSoon);
+      allDramas.assignAll(regularDramas);
       _currentPage.value = 1;
-      hasMoreDramas.value = activeDramas.length > _pageSize;
-      filteredDramas.assignAll(activeDramas.take(_pageSize).toList());
+      hasMoreDramas.value = regularDramas.length > _pageSize;
+      filteredDramas.assignAll(regularDramas.take(_pageSize).toList());
       _analytics.logAppOpen();
       _preloadImages(activeDramas);
       await _cacheDramas(activeDramas);
       _resolveHeroSlider(activeDramas);
+      _resolveNewDramas(activeDramas);
       _loadLatestEpisodes(activeDramas);
     } catch (e) {
       if (kDebugMode) { debugPrint('Error loading dramas: $e'); }
@@ -173,6 +210,25 @@ class HomeController extends GetxController {
       errorMessage.value = 'Something went wrong. Please try again.';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  void _resolveNewDramas(List<DramaModel> dramas) {
+    try {
+      final withTimestamp = dramas
+          .where((d) => !d.isComingSoon && d.addedOn != null && d.addedOn!.isNotEmpty)
+          .toList();
+
+      withTimestamp.sort((a, b) {
+        final dateA = DateTime.tryParse(a.addedOn!) ?? DateTime(2000);
+        final dateB = DateTime.tryParse(b.addedOn!) ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+
+      newDramas.assignAll(withTimestamp.take(10).toList());
+    } catch (e) {
+      if (kDebugMode) { debugPrint('New dramas resolve error: $e'); }
+      newDramas.clear();
     }
   }
 

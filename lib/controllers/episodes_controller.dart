@@ -9,7 +9,7 @@ import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/controllers/history_controller.dart';
-import 'package:drama_hub/utils/constants.dart'; // ✅ StorageKeys
+import 'package:drama_hub/utils/constants.dart';
 import 'dart:async';
 import 'package:drama_hub/controllers/video_controller.dart';
 
@@ -29,16 +29,25 @@ class EpisodesController extends GetxController {
   late DramaModel selectedDrama;
   bool skipInterstitialOnOpen = false;
 
+  // Coming Soon countdown
+  final RxInt csDays = 0.obs;
+  final RxInt csHours = 0.obs;
+  final RxInt csMinutes = 0.obs;
+  final RxInt csSeconds = 0.obs;
+  final RxBool isComingSoonActive = false.obs;
+  Timer? _countdownTimer;
+
+  bool get isComingSoonDrama => selectedDrama.isComingSoon &&
+      selectedDrama.premiereDate != null &&
+      selectedDrama.premiereDate!.isNotEmpty;
+
   @override
   void onInit() {
     super.onInit();
     if (Get.arguments != null && Get.arguments is DramaModel) {
       selectedDrama = Get.arguments as DramaModel;
       skipInterstitialOnOpen = false;
-      loadEpisodes();
-      Future.delayed(const Duration(seconds: 1), () {
-        _adService.showInterstitialForScreen('episodes_screen');
-      });
+      _initScreen();
     } else if (Get.arguments != null && Get.arguments is Map) {
       final args = Get.arguments as Map;
       final drama = args['drama'];
@@ -55,14 +64,12 @@ class EpisodesController extends GetxController {
       skipInterstitialOnOpen = args['skipAd'] == true;
       final autoPlayEp = args['autoPlayEpisode'] as int?;
 
-      loadEpisodes().then((_) {
+      _initScreen().then((_) {
         if (autoPlayEp != null) {
           final episode = allEpisodes.firstWhereOrNull(
             (e) => e.episodeNumber == autoPlayEp,
           );
-          if (episode != null) {
-            openEpisode(episode);
-          }
+          if (episode != null) openEpisode(episode);
         }
       });
 
@@ -77,6 +84,46 @@ class EpisodesController extends GetxController {
       }
       Future.microtask(() => Get.back());
     }
+  }
+
+  Future<void> _initScreen() async {
+    if (isComingSoonDrama) {
+      // Check if premiere date already passed
+      final premiere = DateTime.tryParse(selectedDrama.premiereDate!);
+      if (premiere != null && DateTime.now().isBefore(premiere)) {
+        isComingSoonActive.value = true;
+        _startCountdown(premiere);
+      } else {
+        // Premiere date passed — treat as normal drama
+        isComingSoonActive.value = false;
+        await loadEpisodes();
+      }
+    } else {
+      isComingSoonActive.value = false;
+      await loadEpisodes();
+    }
+  }
+
+  void _startCountdown(DateTime premiere) {
+    _updateCountdown(premiere);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCountdown(premiere);
+    });
+  }
+
+  void _updateCountdown(DateTime premiere) {
+    final diff = premiere.difference(DateTime.now());
+    if (diff.isNegative || diff.inSeconds <= 0) {
+      _countdownTimer?.cancel();
+      isComingSoonActive.value = false;
+      // Auto load episodes when timer hits zero
+      loadEpisodes();
+      return;
+    }
+    csDays.value = diff.inDays;
+    csHours.value = diff.inHours % 24;
+    csMinutes.value = diff.inMinutes % 60;
+    csSeconds.value = diff.inSeconds % 60;
   }
 
   Future<void> loadEpisodes() async {
@@ -113,7 +160,6 @@ class EpisodesController extends GetxController {
 
   Future<void> saveLastWatched(EpisodeModel episode) async {
     final prefs = await SharedPreferences.getInstance();
-    // ✅ StorageKeys replacing all magic strings
     await prefs.setString(StorageKeys.lastDramaId, selectedDrama.id);
     await prefs.setString(StorageKeys.lastDramaTitle, selectedDrama.title);
     await prefs.setString(
@@ -162,7 +208,6 @@ class EpisodesController extends GetxController {
         'episode_title': episode.title,
       },
     );
-    // ✅ Pass dramaTitle and dramaBanner for video screen display
     Get.delete<VideoController>(force: true);
     Get.toNamed(
       AppRoutes.video,
@@ -175,7 +220,6 @@ class EpisodesController extends GetxController {
   }
 
   void filterEpisodes(String query) {
-    // ✅ 5.9 — 300ms debounce
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (query.isEmpty) {
@@ -195,6 +239,7 @@ class EpisodesController extends GetxController {
   @override
   void onClose() {
     _searchDebounce?.cancel();
+    _countdownTimer?.cancel();
     super.onClose();
   }
 }

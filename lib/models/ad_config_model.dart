@@ -66,15 +66,27 @@ class AdConfigModel {
 }
 
 class AdNetworksConfig {
-  final bool appodealEnabled;
+  final bool levelplayEnabled;
   final bool casEnabled;
-  AdNetworksConfig({required this.appodealEnabled, required this.casEnabled});
-  factory AdNetworksConfig.fromJson(Map<String, dynamic> json) => AdNetworksConfig(
-    appodealEnabled: json['appodeal_enabled'] ?? true,
-    casEnabled: json['cas_enabled'] ?? true,
-  );
-  factory AdNetworksConfig.defaults() => AdNetworksConfig(appodealEnabled: true, casEnabled: true);
-  Map<String, dynamic> toJson() => {'appodeal_enabled': appodealEnabled, 'cas_enabled': casEnabled};
+
+  AdNetworksConfig({
+    required this.levelplayEnabled,
+    required this.casEnabled,
+  });
+
+  factory AdNetworksConfig.fromJson(Map<String, dynamic> json) =>
+      AdNetworksConfig(
+        levelplayEnabled: json['levelplay_enabled'] ?? true,
+        casEnabled: json['cas_enabled'] ?? false,
+      );
+
+  factory AdNetworksConfig.defaults() =>
+      AdNetworksConfig(levelplayEnabled: true, casEnabled: false);
+
+  Map<String, dynamic> toJson() => {
+        'levelplay_enabled': levelplayEnabled,
+        'cas_enabled': casEnabled,
+      };
 }
 
 class AppOpenAdConfig {
@@ -145,7 +157,7 @@ class InterstitialAdConfig {
       maxPerSession: json['max_per_session'] ?? 3,
       adUnitId: json['ad_unit_id'] ?? InterstitialAdConfig.defaults().adUnitId,
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
-      priority1: json['priority_1'] ?? 'appodeal',
+      priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
       priority2: json['priority_2'] ?? 'cas',
       priority2Enabled: json['priority_2_enabled'] ?? false,
@@ -171,7 +183,7 @@ class InterstitialAdConfig {
       'rate_app_screen': false,
       'report_problem_screen': false,
     },
-    priority1: 'appodeal',
+    priority1: 'levelplay',
     priority1Enabled: true,
     priority2: 'cas',
     priority2Enabled: false,
@@ -226,7 +238,7 @@ class RewardedAdConfig {
       maxPerSession: json['max_per_session'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? RewardedAdConfig.defaults().adUnitId,
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
-      priority1: json['priority_1'] ?? 'appodeal',
+      priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
       priority2: json['priority_2'] ?? 'cas',
       priority2Enabled: json['priority_2_enabled'] ?? false,
@@ -252,7 +264,7 @@ class RewardedAdConfig {
       'rate_app_screen': false,
       'report_problem_screen': false,
     },
-    priority1: 'appodeal',
+    priority1: 'levelplay',
     priority1Enabled: true,
     priority2: 'cas',
     priority2Enabled: false,
@@ -302,7 +314,7 @@ class DownloadAdConfig {
       maxPerSession: json['max_per_session'] ?? 3,
       priority1: json['priority_1'] ?? 'cas',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'appodeal',
+      priority2: json['priority_2'] ?? 'levelplay',
       priority2Enabled: json['priority_2_enabled'] ?? true,
     );
   }
@@ -313,7 +325,7 @@ class DownloadAdConfig {
     maxPerSession: 3,
     priority1: 'cas',
     priority1Enabled: true,
-    priority2: 'appodeal',
+    priority2: 'levelplay',
     priority2Enabled: true,
   );
 
@@ -411,7 +423,7 @@ class OfflineAdConfig {
       maxPerSession: json['max_per_session'] ?? 3,
       priority1: json['priority_1'] ?? 'cas',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'appodeal',
+      priority2: json['priority_2'] ?? 'levelplay',
       priority2Enabled: json['priority_2_enabled'] ?? true,
     );
   }
@@ -424,7 +436,7 @@ class OfflineAdConfig {
     maxPerSession: 3,
     priority1: 'cas',
     priority1Enabled: true,
-    priority2: 'appodeal',
+    priority2: 'levelplay',
     priority2Enabled: true,
   );
 

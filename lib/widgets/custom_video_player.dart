@@ -877,7 +877,7 @@ class _CustomVideoPlayerState extends State<CustomVideoPlayer>
           left: 0,
           right: 0,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 24, 8, 4),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
@@ -974,7 +974,7 @@ class _CustomVideoPlayerState extends State<CustomVideoPlayer>
           },
           onHorizontalDragEnd: (_) => _onProgressDragEnd(),
           child: SizedBox(
-            height: 24,
+            height: 10,
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
