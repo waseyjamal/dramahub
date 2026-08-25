@@ -4,7 +4,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
-import 'package:drama_hub/services/vast_ad_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:drama_hub/widgets/custom_video_player.dart';
 import 'package:drama_hub/widgets/telegram_cta_button.dart';
@@ -41,19 +40,9 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   WebViewController? _webViewController;
   VideoPlayerController? _customPlayerController;
 
-  // VAST ad state — all Rx so Obx tracks them
-  final RxBool _vastPlaying = false.obs;
-  final RxBool _vastCompleted = false.obs;
-  final RxInt _vastSecondsLeft = 0.obs;
-  final RxBool _showSkipButton = false.obs;
-  final Rx<VideoPlayerController?> _vastController = Rx<VideoPlayerController?>(
-    null,
-  );
   final Rx<VideoPlayerController?> _customPlayerControllerObs =
       Rx<VideoPlayerController?>(null);
 
-  Timer? _vastTimer;
-  Timer? _skipTimer;
   bool _isInitializing = false;
   final RxBool _hlsLoading = false.obs;
 
@@ -70,10 +59,6 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _vastTimer?.cancel();
-    _skipTimer?.cancel();
-    _vastController.value?.pause();
-    _vastController.value?.dispose();
     _customPlayerController?.removeListener(_onCustomPlayerUpdate);
     _customPlayerController?.pause();
     _customPlayerController?.dispose();
@@ -88,7 +73,6 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _vastController.value?.pause();
       _customPlayerController?.pause();
     }
   }
@@ -162,18 +146,6 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
             controller.episode.streamUrl.isEmpty)
           return;
 
-        final vastService = VastAdService.instance;
-        if (vastService.canShowAd()) {
-          final result = await vastService.fetchAd();
-          if (result.success) {
-            // Mark player as initialized BEFORE playing ad
-            // so UI switches from thumbnail to ad overlay
-            controller.isPlayerInitialized.value = true;
-            await _playVastAd(result);
-            vastService.recordAdShown();
-            return;
-          }
-        }
         _startHlsPlayer();
       } else {
         if (controller.episode.videoId.isEmpty) return;
@@ -240,91 +212,6 @@ body { width:100vw; height:100vh; overflow:hidden; }
     }
   }
 
-  Future<void> _playVastAd(VastAdResult result) async {
-    final mp4Url = result.mp4Url;
-    final skipSeconds = AdConfigService.instance.config.vast.skipAfterSeconds;
-
-    // Initialize video player
-    final vc = VideoPlayerController.networkUrl(Uri.parse(mp4Url));
-    try {
-      await vc.initialize();
-    } catch (e) {
-      // Ad failed to load — go straight to HLS
-      vc.dispose();
-      _startHlsPlayer();
-      return;
-    }
-
-    // Only assign after successful init
-    _vastController.value = vc;
-    _vastSecondsLeft.value = skipSeconds;
-    _vastPlaying.value = true;
-    _vastCompleted.value = false;
-    _showSkipButton.value = false;
-
-    await vc.play();
-    VastAdService.instance.fireImpression(result.impressionUrl);
-
-    // Countdown timer — counts down skip seconds
-    _vastTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      final vc = _vastController.value;
-      if (vc != null && vc.value.isInitialized) {
-        final remaining = (vc.value.duration - vc.value.position).inSeconds;
-        _vastSecondsLeft.value = remaining.clamp(0, 999);
-      }
-    });
-
-    // Show skip button after skipAfterSeconds
-    _skipTimer = Timer(Duration(seconds: skipSeconds), () {
-      if (!mounted) return;
-      _showSkipButton.value = true;
-    });
-
-    // Auto finish when ad ends
-    vc.addListener(() {
-      if (!mounted) return;
-      final val = vc.value;
-      if (val.duration.inMilliseconds > 0 &&
-          val.position >= val.duration &&
-          !_vastCompleted.value) {
-        _finishVastAd();
-      }
-    });
-  }
-
-  void _skipVastAd() {
-    _vastTimer?.cancel();
-    _skipTimer?.cancel();
-    final vc = _vastController.value;
-    _vastController.value = null;
-    _vastPlaying.value = false;
-    _showSkipButton.value = false;
-    vc?.pause();
-    vc?.dispose();
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _startHlsPlayer();
-    });
-  }
-
-  void _finishVastAd() {
-    if (_vastCompleted.value) return;
-    _vastCompleted.value = true;
-    _vastTimer?.cancel();
-    _skipTimer?.cancel();
-    final vc = _vastController.value;
-    _vastController.value = null;
-    _vastPlaying.value = false;
-    _showSkipButton.value = false;
-    vc?.pause();
-    vc?.dispose();
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _startHlsPlayer();
-    });
-  }
 
   Future<void> _restoreWatchProgress() async {
     try {
@@ -502,7 +389,6 @@ body { width:100vw; height:100vh; overflow:hidden; }
 
   Future<bool> _onWillPop() async {
     // Pause everything before leaving
-    _vastController.value?.pause();
     _customPlayerController?.pause();
     if (_webViewController != null && await _webViewController!.canGoBack()) {
       await _webViewController!.goBack();
@@ -564,11 +450,6 @@ body { width:100vw; height:100vh; overflow:hidden; }
                     hlsLoadingObs: _hlsLoading,
                     controller: controller,
                     onPlayTapped: _initializePlayer,
-                    vastPlayingObs: _vastPlaying,
-                    vastControllerObs: _vastController,
-                    vastSecondsLeftObs: _vastSecondsLeft,
-                    showSkipButtonObs: _showSkipButton,
-                    onSkipVast: _skipVastAd,
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
@@ -624,11 +505,6 @@ class _VideoContainer extends StatelessWidget {
   final VoidCallback onPlayTapped;
   final Rx<VideoPlayerController?> customPlayerControllerObs;
   final RxBool hlsLoadingObs;
-  final RxBool vastPlayingObs;
-  final Rx<VideoPlayerController?> vastControllerObs;
-  final RxInt vastSecondsLeftObs;
-  final RxBool showSkipButtonObs;
-  final VoidCallback? onSkipVast;
 
   const _VideoContainer({
     required this.webViewController,
@@ -636,11 +512,6 @@ class _VideoContainer extends StatelessWidget {
     required this.onPlayTapped,
     required this.customPlayerControllerObs,
     required this.hlsLoadingObs,
-    required this.vastPlayingObs,
-    required this.vastControllerObs,
-    required this.vastSecondsLeftObs,
-    required this.showSkipButtonObs,
-    this.onSkipVast,
   });
 
   @override
@@ -692,15 +563,10 @@ class _VideoContainer extends StatelessWidget {
 
             // State 3: Initialized
             if (isCustom) {
-              return _VastOrHlsPlayer(
-                vastPlayingObs: vastPlayingObs,
-                vastSecondsLeftObs: vastSecondsLeftObs,
-                showSkipButtonObs: showSkipButtonObs,
-                vastControllerObs: vastControllerObs,
+              return _HlsPlayer(
                 customPlayerControllerObs: customPlayerControllerObs,
                 hlsLoadingObs: hlsLoadingObs,
                 controller: controller,
-                onSkipVast: onSkipVast,
                 onRetry: onPlayTapped,
               );
             }
@@ -722,45 +588,24 @@ class _VideoContainer extends StatelessWidget {
   }
 }
 
-class _VastOrHlsPlayer extends StatelessWidget {
-  final RxBool vastPlayingObs;
-  final RxInt vastSecondsLeftObs;
-  final RxBool showSkipButtonObs;
-  final Rx<VideoPlayerController?> vastControllerObs;
+class _HlsPlayer extends StatelessWidget {
   final Rx<VideoPlayerController?> customPlayerControllerObs;
   final RxBool hlsLoadingObs;
-  final VoidCallback? onSkipVast;
   final VideoController controller;
   final VoidCallback onRetry;
 
-  const _VastOrHlsPlayer({
-    required this.vastPlayingObs,
-    required this.vastSecondsLeftObs,
-    required this.showSkipButtonObs,
-    required this.vastControllerObs,
+  const _HlsPlayer({
     required this.customPlayerControllerObs,
     required this.hlsLoadingObs,
     required this.controller,
     required this.onRetry,
-    this.onSkipVast,
   });
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final vc = vastControllerObs.value;
       final cpc = customPlayerControllerObs.value;
       final isHlsLoading = hlsLoadingObs.value;
-
-      // Show VAST ad
-      if (vastPlayingObs.value && vc != null) {
-        return _VastAdOverlay(
-          vastController: vc,
-          secondsLeft: vastSecondsLeftObs.value,
-          showSkipButton: showSkipButtonObs.value,
-          onSkip: onSkipVast ?? () {},
-        );
-      }
 
       // Loading — smooth transition spinner
       if (isHlsLoading || cpc == null) {
@@ -1205,92 +1050,6 @@ class _DownloadSection extends StatelessWidget {
   }
 }
 
-class _VastAdOverlay extends StatelessWidget {
-  final VideoPlayerController vastController;
-  final int secondsLeft;
-  final bool showSkipButton;
-  final VoidCallback onSkip;
-
-  const _VastAdOverlay({
-    required this.vastController,
-    required this.secondsLeft,
-    required this.showSkipButton,
-    required this.onSkip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        AspectRatio(
-          aspectRatio: vastController.value.aspectRatio,
-          child: VideoPlayer(vastController),
-        ),
-        Positioned(
-          top: 10,
-          left: 10,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE50914).withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              'AD • ${secondsLeft}s',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        if (showSkipButton)
-          Positioned(
-            bottom: 40,
-            right: 10,
-            child: GestureDetector(
-              onTap: onSkip,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.white54),
-                ),
-                child: const Text(
-                  'Skip Ad ›',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: VideoProgressIndicator(
-            vastController,
-            allowScrubbing: false,
-            colors: const VideoProgressColors(
-              playedColor: Color(0xFFE50914),
-              bufferedColor: Colors.white24,
-              backgroundColor: Colors.white12,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────
 // EPISODE LIST SECTION

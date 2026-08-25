@@ -3,8 +3,6 @@
 // ✅ casEnabled kept for backward compat (old app versions won't crash)
 // ✅ All other models unchanged
 
-import 'package:drama_hub/models/vast_ad_config_model.dart';
-
 class AdConfigModel {
   final bool adsEnabled;
   final AppOpenAdConfig appOpen;
@@ -12,7 +10,6 @@ class AdConfigModel {
   final RewardedAdConfig rewarded;
   final DownloadAdConfig download;
   final NativeAdConfig native;
-  final VastAdConfig vast;
   final AdNetworksConfig adNetworks;
   final OfflineAdConfig offlineAds;
 
@@ -23,7 +20,6 @@ class AdConfigModel {
     required this.rewarded,
     required this.download,
     required this.native,
-    required this.vast,
     required this.adNetworks,
     required this.offlineAds,
   });
@@ -36,7 +32,6 @@ class AdConfigModel {
       rewarded: RewardedAdConfig.fromJson(json['rewarded'] ?? {}),
       download: DownloadAdConfig.fromJson(json['download'] ?? {}),
       native: NativeAdConfig.fromJson(json['native'] ?? {}),
-      vast: VastAdConfig.fromJson(json['vast'] ?? {}),
       adNetworks: AdNetworksConfig.fromJson(json['ad_networks'] ?? {}),
       offlineAds: OfflineAdConfig.fromJson(json['offline_ads'] ?? {}),
     );
@@ -50,7 +45,6 @@ class AdConfigModel {
       rewarded: RewardedAdConfig.defaults(),
       download: DownloadAdConfig.defaults(),
       native: NativeAdConfig.defaults(),
-      vast: VastAdConfig.defaults(),
       adNetworks: AdNetworksConfig.defaults(),
       offlineAds: OfflineAdConfig.defaults(),
     );
@@ -63,7 +57,6 @@ class AdConfigModel {
     'rewarded': rewarded.toJson(),
     'download': download.toJson(),
     'native': native.toJson(),
-    'vast': vast.toJson(),
     'ad_networks': adNetworks.toJson(),
     'offline_ads': offlineAds.toJson(),
   };
