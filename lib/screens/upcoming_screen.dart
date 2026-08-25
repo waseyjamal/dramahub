@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
-import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:drama_hub/utils/constants.dart';
-import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 
-/// Upcoming Episode screen
-///
-/// Displays countdown timer for unreleased episodes
-/// Auto-redirects to video screen when countdown reaches zero
 class UpcomingScreen extends StatefulWidget {
   const UpcomingScreen({super.key});
 
@@ -37,208 +32,410 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     final controller = Get.find<UpcomingController>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Coming Soon'), centerTitle: true),
+      backgroundColor: AppColors.darkBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.darkBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.white,
+            size: 20,
+          ),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(
+          'Coming Soon',
+          style: AppTypography.title.copyWith(fontSize: 18),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppSpacing.md),
 
-                // Banner Section
-                _BannerSection(controller: controller),
-
-                const SizedBox(height: AppSpacing.md),
-                const YandexBannerAdWidget(screenKey: 'upcoming_screen'),
-                const SizedBox(height: AppSpacing.md),
-
-                // Timer Section
-                _TimerSection(controller: controller),
-
-                const SizedBox(height: AppSpacing.xl),
-
-                // CTA Buttons
-                _CTASection(controller: controller),
-
-                const SizedBox(height: AppSpacing.xl),
-
-                // Back Link
-                _BackLink(),
-
-                const SizedBox(height: AppSpacing.xl),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Banner section with episode title and upcoming badge
-class _BannerSection extends StatelessWidget {
-  final UpcomingController controller;
-
-  const _BannerSection({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        boxShadow: AppShadows.cardShadow,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.secondaryDark, AppColors.cardBackground],
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        child: Stack(
-          children: [
-            // Centered content
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Upcoming badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
+              // ── Banner ──
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                child: Stack(
+                  children: [
+                    // Banner image
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: controller.dramaBanner.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: controller.dramaBanner,
+                              fit: BoxFit.cover,
+                              fadeInDuration: Duration.zero,
+                              placeholder: (c, u) =>
+                                  Container(color: AppColors.secondaryDark),
+                              errorWidget: (c, u, e) => Container(
+                                color: AppColors.secondaryDark,
+                                child: const Icon(
+                                  Icons.movie_outlined,
+                                  color: Colors.white24,
+                                  size: 48,
+                                ),
+                              ),
+                            )
+                          : Container(color: AppColors.secondaryDark),
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryRed,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Text(
-                      'UPCOMING',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
+
+                    // Gradient
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.8),
+                            ],
+                            stops: const [0.4, 1.0],
+                          ),
+                        ),
                       ),
                     ),
+
+                    // UPCOMING badge top left
+                    Positioned(
+                      top: AppSpacing.md,
+                      left: AppSpacing.md,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryRed,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: const Text(
+                          '🔒 UPCOMING',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Language badge top right
+                    Positioned(
+                      top: AppSpacing.md,
+                      right: AppSpacing.md,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryRed,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: const Text(
+                          'Hindi Dubbed',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Drama title + episode number at bottom
+                    Positioned(
+                      bottom: AppSpacing.md,
+                      left: AppSpacing.md,
+                      right: AppSpacing.md,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (controller.dramaTitle.isNotEmpty)
+                            Text(
+                              controller.dramaTitle,
+                              style: AppTypography.title.copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.goldAccent,
+                                shadows: [
+                                  const Shadow(
+                                    color: Colors.black,
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          Text(
+                            'Episode ${controller.episode.episodeNumber}',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.white,
+                              height: 1.1,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black,
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              // ── Countdown ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF2A0808),
+                      Color(0xFF150404),
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'RELEASING IN',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.softGrey,
+                        fontSize: 11,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Obx(
+                      () => Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _TimeUnit(
+                            value: controller.days.value,
+                            label: 'DAYS',
+                          ),
+                          _Colon(),
+                          _TimeUnit(
+                            value: controller.hours.value,
+                            label: 'HRS',
+                          ),
+                          _Colon(),
+                          _TimeUnit(
+                            value: controller.minutes.value,
+                            label: 'MINS',
+                          ),
+                          _Colon(),
+                          _TimeUnit(
+                            value: controller.seconds.value,
+                            label: 'SECS',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Builder(
+                      builder: (_) {
+                        final date = controller.episode.releaseDate;
+                        final formatted =
+                            '${_dayName(date.weekday)}, ${date.day} '
+                            '${_monthName(date.month)} ${date.year}  ·  '
+                            '${date.hour.toString().padLeft(2, '0')}:'
+                            '${date.minute.toString().padLeft(2, '0')}';
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_rounded,
+                              color: AppColors.softGrey,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              formatted,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.softGrey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
 
-                  const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.lg),
 
-                  // Episode title
-                  Text(
-                    controller.episode.title,
-                    style: AppTypography.headlineMedium.copyWith(fontSize: 30),
-                    textAlign: TextAlign.center,
+              // ── Telegram ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryDark,
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🔔 Get Notified When It Drops',
+                      style: AppTypography.title.copyWith(fontSize: 15),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Join our Telegram for instant alerts.',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.softGrey,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          if (!AppUrls.isSafeUrl(AppUrls.telegram)) return;
+                          final url = Uri.parse(AppUrls.telegram);
+                          canLaunchUrl(url).then((can) {
+                            if (can) {
+                              launchUrl(
+                                url,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.send_rounded, size: 18),
+                        label: const Text('Join Telegram Channel'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0088CC),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.md,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.medium,
+                            ),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              // ── Back ──
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 14,
+                    color: AppColors.softGrey,
                   ),
-
-                  const SizedBox(height: 4),
-
-                  // Subtitle
-                  Text(
-                    'Hindi Subtitles',
+                  label: Text(
+                    'Back to Episode List',
                     style: AppTypography.body.copyWith(
                       color: AppColors.softGrey,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: AppSpacing.xl),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Timer section with countdown
-class _TimerSection extends StatelessWidget {
-  final UpcomingController controller;
+// ── Time Unit ─────────────────────────────────────────────────────────────────
 
-  const _TimerSection({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        boxShadow: AppShadows.cardShadow,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: 26,
-      ),
-      child: Column(
-        children: [
-          // Timer label
-          Text(
-            'EXPECTED RELEASE IN',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.softGrey,
-              fontSize: 13,
-              letterSpacing: 1,
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Timer boxes
-          Obx(
-            () => Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _TimeBox(value: controller.days.value, label: 'DAYS'),
-                const SizedBox(width: 10),
-                _TimeBox(value: controller.hours.value, label: 'HOURS'),
-                const SizedBox(width: 10),
-                _TimeBox(value: controller.minutes.value, label: 'MINS'),
-                const SizedBox(width: 10),
-                _TimeBox(value: controller.seconds.value, label: 'SECS'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Individual time box
-class _TimeBox extends StatelessWidget {
+class _TimeUnit extends StatelessWidget {
   final int value;
   final String label;
 
-  const _TimeBox({required this.value, required this.label});
+  const _TimeUnit({required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 60,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryDark,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-      ),
+    return SizedBox(
+      width: 64,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            value.toString().padLeft(2, '0'),
-            style: AppTypography.headlineMedium.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          Container(
+            width: 64,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF3A0A0A),
+                  Color(0xFF1C0505),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.medium),
+              border: Border.all(
+                color: AppColors.primaryRed.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                value.toString().padLeft(2, '0'),
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.white,
+                  height: 1,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 6),
           Text(
             label,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.primaryRed,
+            style: TextStyle(
+              fontFamily: 'Inter',
               fontSize: 9,
-              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+              color: AppColors.softGrey.withValues(alpha: 0.8),
+              letterSpacing: 1.5,
             ),
           ),
         ],
@@ -247,83 +444,51 @@ class _TimeBox extends StatelessWidget {
   }
 }
 
-/// CTA section with premium and telegram buttons
-class _CTASection extends StatelessWidget {
-  final UpcomingController controller;
+// ── Colon ─────────────────────────────────────────────────────────────────────
 
-  const _CTASection({required this.controller});
-
+class _Colon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        boxShadow: AppShadows.cardShadow,
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: AppSpacing.sm,
+        right: AppSpacing.sm,
+        bottom: 20,
       ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        children: [
-          // Premium CTA title
-          
-
-          // Telegram CTA title
-          Text(
-            '⬇️ Join Telegram for Updates',
-            style: AppTypography.title.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Telegram button
-          ElevatedButton(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              if (!AppUrls.isSafeUrl(AppUrls.telegram)) return;
-              final url = Uri.parse(AppUrls.telegram);
-              canLaunchUrl(url).then((can) {
-                if (can) launchUrl(url, mode: LaunchMode.externalApplication);
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryRed,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.medium),
-              ),
-            ),
-            child: Text(
-              'Join Telegram Channel',
-              style: AppTypography.body.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Back link
-class _BackLink extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        Get.back();
-      },
       child: Text(
-        '🔙 Back to Episode List',
-        style: AppTypography.body.copyWith(
-          color: AppColors.softGrey,
-          fontSize: 13,
+        ':',
+        style: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 24,
+          fontWeight: FontWeight.w300,
+          color: AppColors.softGrey.withValues(alpha: 0.5),
         ),
       ),
     );
   }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+String _dayName(int weekday) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return days[(weekday - 1).clamp(0, 6)];
+}
+
+String _monthName(int month) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return months[(month - 1).clamp(0, 11)];
 }

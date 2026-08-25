@@ -43,4 +43,6 @@ class AppRoutes {
   /// Suggest a drama screen route
   static const String suggestDrama = '/suggest-drama';
   static const String downloads = '/downloads';
+  static const String latestEpisodes = '/latest-episodes';
+  static const String newDramas = '/new-dramas';
 }

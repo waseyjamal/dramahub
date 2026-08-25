@@ -18,6 +18,8 @@ import 'package:drama_hub/screens/watchlist_screen.dart';
 import 'package:drama_hub/screens/report_problem_screen.dart';
 import 'package:drama_hub/screens/suggest_drama_screen.dart';
 import 'package:drama_hub/screens/downloads_screen.dart';
+import 'package:drama_hub/screens/latest_episodes_screen.dart';
+import 'package:drama_hub/screens/new_dramas_screen.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
 
 /// Application pages configuration
@@ -86,6 +88,14 @@ class AppPages {
     GetPage(
       name: AppRoutes.downloads,
       page: () => const DownloadsScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.latestEpisodes,
+      page: () => const LatestEpisodesScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.newDramas,
+      page: () => const NewDramasScreen(),
     ),
   ];
 }

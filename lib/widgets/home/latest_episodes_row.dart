@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/models/drama_model.dart';
 import 'package:drama_hub/ui_system/colors.dart';
@@ -29,9 +30,37 @@ class LatestEpisodesRow extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Text(
-              '🆕 Latest Episodes',
-              style: AppTypography.title.copyWith(fontSize: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '🆕 Latest Episodes',
+                  style: AppTypography.title.copyWith(fontSize: 18),
+                ),
+                GestureDetector(
+                  onTap: () => Get.toNamed(AppRoutes.latestEpisodes),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.primaryRed.withValues(alpha: 0.5),
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      'View All',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.primaryRed,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(

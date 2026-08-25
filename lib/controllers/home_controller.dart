@@ -32,9 +32,12 @@ class HomeController extends GetxController {
   final RxList<DramaModel> heroSliderDramas = <DramaModel>[].obs;
   final RxList<DramaModel> comingSoonDramas = <DramaModel>[].obs;
   final RxList<DramaModel> newDramas = <DramaModel>[].obs;
+  final RxList<DramaModel> allNewDramas = <DramaModel>[].obs;
 
   // Built from drama data directly — zero episode network requests
   final RxList<Map<String, dynamic>> latestEpisodes =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> allLatestEpisodes =
       <Map<String, dynamic>>[].obs;
 
   final RxBool isLoading = true.obs;
@@ -242,10 +245,12 @@ class HomeController extends GetxController {
         return dateB.compareTo(dateA);
       });
 
+      allLatestEpisodes.assignAll(results);
       latestEpisodes.assignAll(results.take(10).toList());
     } catch (e) {
       if (kDebugMode) debugPrint('_buildLatestEpisodesFromDramas error: $e');
       latestEpisodes.clear();
+      allLatestEpisodes.clear();
     }
   }
 
@@ -264,10 +269,12 @@ class HomeController extends GetxController {
         return dateB.compareTo(dateA);
       });
 
+      allNewDramas.assignAll(withTimestamp);
       newDramas.assignAll(withTimestamp.take(10).toList());
     } catch (e) {
       if (kDebugMode) debugPrint('New dramas resolve error: $e');
       newDramas.clear();
+      allNewDramas.clear();
     }
   }
 

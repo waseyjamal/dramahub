@@ -9,6 +9,9 @@ import 'package:drama_hub/routes/app_routes.dart';
 class UpcomingController extends GetxController {
   // Episode passed from previous screen
   late EpisodeModel episode;
+  String dramaTitle = '';
+  String dramaBanner = '';
+  String dramaPoster = '';
 
   // Countdown values
   final RxInt days = 0.obs;
@@ -23,13 +26,30 @@ class UpcomingController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // ✅ 3.3 — Safe cast with null check (was hard cast — crashed if arguments null)
     final args = Get.arguments;
-    if (args == null || args is! EpisodeModel) {
+    if (args == null) {
       Future.microtask(() => Get.back());
       return;
     }
-    episode = args;
+    if (args is EpisodeModel) {
+      episode = args;
+      dramaTitle = '';
+      dramaBanner = '';
+      dramaPoster = '';
+    } else if (args is Map) {
+      final ep = args['episode'];
+      if (ep == null || ep is! EpisodeModel) {
+        Future.microtask(() => Get.back());
+        return;
+      }
+      episode = ep;
+      dramaTitle = args['dramaTitle'] ?? '';
+      dramaBanner = args['dramaBanner'] ?? '';
+      dramaPoster = args['dramaPoster'] ?? '';
+    } else {
+      Future.microtask(() => Get.back());
+      return;
+    }
 
     _startCountdown();
   }

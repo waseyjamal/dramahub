@@ -187,7 +187,12 @@ class EpisodesController extends GetxController {
     _isOpeningEpisode = true;
     try {
       if (episode.isUpcoming) {
-        Get.toNamed(AppRoutes.upcoming, arguments: episode);
+        Get.toNamed(AppRoutes.upcoming, arguments: {
+          'episode': episode,
+          'dramaTitle': selectedDrama.title,
+          'dramaBanner': selectedDrama.bannerImage,
+          'dramaPoster': selectedDrama.posterImage,
+        });
         return;
       }
       await saveLastWatched(episode);

@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
+import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
+import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 
 /// Horizontal row showing the most recently added dramas to Drama Hub.
@@ -50,6 +52,29 @@ class NewDramasRow extends StatelessWidget {
                       style: AppTypography.title.copyWith(fontSize: 18),
                     ),
                   ],
+                ),
+                GestureDetector(
+                  onTap: () => Get.toNamed(AppRoutes.newDramas),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.primaryRed.withValues(alpha: 0.5),
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      'View All',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.primaryRed,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
