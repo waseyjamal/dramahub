@@ -11,7 +11,7 @@ import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
-import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 
 class WatchlistScreen extends StatefulWidget {
   final VoidCallback? onBrowseTapped;
@@ -24,11 +24,6 @@ class WatchlistScreen extends StatefulWidget {
 class _WatchlistScreenState extends State<WatchlistScreen> {
   void _goToEpisodesSkipAd(HomeController homeController, drama) {
     homeController.goToEpisodesSkipAd(drama);
-  }
-
-  @override
-  void initState() {
-    super.initState();
   }
 
   @override
@@ -53,7 +48,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                 AppSpacing.lg,
                 0,
               ),
-              child: CasNativeAdWidget(screenKey: 'watchlist_screen'),
+              child: YandexBannerAdWidget(screenKey: 'watchlist_screen'),
             ),
             Expanded(
               child: Obx(() {

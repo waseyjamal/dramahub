@@ -5,11 +5,13 @@ import 'package:get/get.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/controllers/watchlist_controller.dart';
 import 'package:drama_hub/ui_system/colors.dart';
+import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/typography.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
 import 'package:drama_hub/widgets/telegram_cta_button.dart';
-import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 import 'package:drama_hub/widgets/home/hero_slider.dart';
 import 'package:drama_hub/widgets/home/drama_card.dart';
 import 'package:drama_hub/widgets/home/continue_watching_card.dart';
@@ -19,10 +21,6 @@ import 'package:drama_hub/widgets/home/new_dramas_row.dart';
 import 'package:drama_hub/widgets/home/home_skeleton_loader.dart';
 import 'package:drama_hub/widgets/home/home_search_bar.dart';
 
-/// Home screen
-///
-/// Main landing screen with hero banner, search, and drama grid.
-/// All widget classes extracted to lib/widgets/home/ for maintainability.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -31,14 +29,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final TextEditingController _overlaySearchController = TextEditingController();
+  final FocusNode _overlayFocusNode = FocusNode();
   Timer? _timer;
 
-  // NOTE: _currentPage removed from here — it now lives inside HeroSlider's
-  // own State. setState() for dot indicator no longer touches HomeScreen.
+  // ── Search overlay animation ──────────────────────────────────────────────
+  late final AnimationController _searchAnimController;
+  late final Animation<double> _searchFadeAnim;
+  late final Animation<Offset> _searchSlideAnim;
 
   @override
   bool get wantKeepAlive => true;
@@ -47,8 +49,11 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
 
-    // loadLastWatched called once here, not on every build()
     Get.find<HomeController>().loadLastWatched();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      AdService.instance.showInterstitialForScreen('home_screen');
+    });
 
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (!mounted || _timer == null) {
@@ -65,6 +70,28 @@ class _HomeScreenState extends State<HomeScreen>
         }
       }
     });
+
+    // Search overlay animation — 280ms feels instant but not abrupt
+    _searchAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+
+    _searchFadeAnim = CurvedAnimation(
+      parent: _searchAnimController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    // Slides up from 6% below — subtle, not theatrical
+    _searchSlideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _searchAnimController,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          ),
+        );
   }
 
   @override
@@ -74,15 +101,32 @@ class _HomeScreenState extends State<HomeScreen>
     _pageController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _overlaySearchController.dispose();
+    _overlayFocusNode.dispose();
+    _searchAnimController.dispose();
     super.dispose();
   }
 
-  void _dismissSearch(HomeController controller) {
-    if (_searchFocusNode.hasFocus) {
-      _searchFocusNode.unfocus();
-      _searchController.clear();
-      controller.filterDramas('');
-    }
+  // ── Enter search mode ─────────────────────────────────────────────────────
+  void _enterSearch() {
+    final controller = Get.find<HomeController>();
+    _overlaySearchController.text = _searchController.text;
+    controller.isSearching.value = true;
+    _searchAnimController.forward();
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (mounted) _overlayFocusNode.requestFocus();
+    });
+  }
+
+  // ── Exit search mode — only called intentionally ──────────────────────────
+  void _exitSearch() {
+    final controller = Get.find<HomeController>();
+    _overlayFocusNode.unfocus();
+    _overlaySearchController.clear();
+    _searchController.clear();
+    controller.filterDramas('');
+    controller.isSearching.value = false;
+    _searchAnimController.reverse();
   }
 
   Widget _buildOfflineBanner() {
@@ -113,24 +157,315 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  // ── Full-screen search overlay ────────────────────────────────────────────
+  Widget _buildSearchOverlay(
+    HomeController controller,
+    WatchlistController watchlistController,
+  ) {
+    return FadeTransition(
+      opacity: _searchFadeAnim,
+      child: SlideTransition(
+        position: _searchSlideAnim,
+        child: Scaffold(
+          backgroundColor: AppColors.darkBackground,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // ── Pinned search bar + Cancel ──────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryDark,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.large),
+                          ),
+                          child: TextField(
+                            controller: _overlaySearchController,
+                            focusNode: _overlayFocusNode,
+                            autofocus: true,
+                            onChanged: (value) {
+                              _searchController.text = value;
+                              controller.filterDramas(value);
+                            },
+                            style: AppTypography.body.copyWith(
+                              color: AppColors.white,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Search drama name...',
+                              hintStyle: AppTypography.body.copyWith(
+                                color: AppColors.softGrey,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: AppColors.softGrey,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      GestureDetector(
+                        onTap: _exitSearch,
+                        child: Text(
+                          'Cancel',
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.primaryRed,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Results ─────────────────────────────────────────────────
+                Expanded(
+                  child: Obx(() {
+                    final results = controller.filteredDramas;
+
+                    if (results.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.search_off_rounded,
+                              size: 64,
+                              color: Colors.white24,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No dramas found',
+                              style: AppTypography.title.copyWith(
+                                color: Colors.white54,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try a different name',
+                              style: AppTypography.body.copyWith(
+                                color: Colors.white38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return GridView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.sm,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.667,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                      ),
+                      itemCount: results.length,
+                      itemBuilder: (context, index) {
+                        final drama = results[index];
+                        return RepaintBoundary(
+                          child: DramaCard(
+                            drama: drama,
+                            onTap: () => controller.goToEpisodes(drama),
+                            homeController: controller,
+                            watchlistController: watchlistController,
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Normal home content ───────────────────────────────────────────────────
+  Widget _buildHomeContent(
+    HomeController controller,
+    WatchlistController watchlistController,
+  ) {
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: () => _onRefresh(controller),
+        color: AppColors.primaryRed,
+        backgroundColor: AppColors.cardBackground,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Obx(
+                    () => controller.isOfflineCached.value
+                        ? _buildOfflineBanner()
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Obx(
+                    () => controller.heroSliderDramas.isNotEmpty
+                        ? RepaintBoundary(
+                            child: HeroSlider(
+                              dramas: controller.heroSliderDramas,
+                              controller: controller,
+                              pageController: _pageController,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  Obx(
+                    () => controller.lastDramaId.value.isNotEmpty
+                        ? RepaintBoundary(
+                            child: ContinueWatchingCard(controller: controller),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+
+                  RepaintBoundary(
+                    child: LatestEpisodesRow(controller: controller),
+                  ),
+
+                  RepaintBoundary(child: NewDramasRow(controller: controller)),
+
+                  RepaintBoundary(child: ComingSoonRow(controller: controller)),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Search bar — tapping enters search mode
+                  HomeSearchBar(
+                    controller: controller,
+                    textController: _searchController,
+                    focusNode: _searchFocusNode,
+                    onFocused: _enterSearch,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Text(
+                      '🎬 All Dramas',
+                      style: AppTypography.title.copyWith(fontSize: 18),
+                    ),
+                  ),
+
+                  const YandexBannerAdWidget(screenKey: 'home_screen'),
+                  const SizedBox(height: AppSpacing.md),
+                ]),
+              ),
+            ),
+
+            Obx(
+              () => SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.667,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.md,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final drama = controller.filteredDramas[index];
+                    return RepaintBoundary(
+                      child: DramaCard(
+                        drama: drama,
+                        onTap: () => controller.goToEpisodes(drama),
+                        homeController: controller,
+                        watchlistController: watchlistController,
+                      ),
+                    );
+                  }, childCount: controller.filteredDramas.length),
+                ),
+              ),
+            ),
+
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Obx(
+                    () => controller.hasMoreDramas.value
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.lg,
+                            ),
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                controller.loadMoreDramas();
+                              },
+                              icon: const Icon(Icons.expand_more_rounded),
+                              label: const Text('Load More Dramas'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 14,
+                                ),
+                                side: BorderSide(
+                                  color: AppColors.primaryRed.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const TelegramCTAButton(),
+                  const SizedBox(height: AppSpacing.xl),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    super.build(context); // required for AutomaticKeepAliveClientMixin
+    super.build(context);
     final controller = Get.find<HomeController>();
-
-    // FIX #2 — Both controllers fetched ONCE here, outside any builder or Obx.
-    // Passed into DramaCard as constructor params.
-    // Previously: Get.find() was called inside _DramaCard.build() —
-    // that meant 40+ hashmap lookups per grid rebuild.
-    // Now: exactly 2 lookups total, regardless of how many cards are shown.
     final watchlistController = Get.find<WatchlistController>();
 
     return Scaffold(
       body: Obx(() {
+        // ── Loading state ─────────────────────────────────────────────────
         if (controller.isLoading.value) {
           return const HomeSkeletonLoader();
         }
 
+        // ── No internet, no cache ─────────────────────────────────────────
         if (!controller.hasInternet.value &&
             !controller.isOfflineCached.value) {
           return Center(
@@ -173,6 +508,7 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
+        // ── Error state ───────────────────────────────────────────────────
         if (controller.hasError.value) {
           return Center(
             child: Column(
@@ -215,179 +551,25 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        return SafeArea(
-          child: GestureDetector(
-            onTap: () => _dismissSearch(controller),
-            behavior: HitTestBehavior.translucent,
-            child: RefreshIndicator(
-              onRefresh: () => _onRefresh(controller),
-              color: AppColors.primaryRed,
-              backgroundColor: AppColors.cardBackground,
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        // Offline banner
-                        Obx(
-                          () => controller.isOfflineCached.value
-                              ? _buildOfflineBanner()
-                              : const SizedBox.shrink(),
-                        ),
-                        const SizedBox(height: 8),
+        // ── Main content — Stack: home behind, search overlay on top ──────
+        return PopScope(
+          // When search is active, back button exits search instead of
+          // navigating away from the home screen
+          canPop: !controller.isSearching.value,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && controller.isSearching.value) {
+              _exitSearch();
+            }
+          },
+          child: Stack(
+            children: [
+              // Layer 1 — Normal home (always built, stays alive in memory)
+              _buildHomeContent(controller, watchlistController),
 
-                        // Hero Slider
-                        // FIX #1 — HeroSlider is now a StatefulWidget.
-                        // _currentPage lives inside it. Only the dot row
-                        // repaints on auto-scroll — HomeScreen is unaffected.
-                        Obx(
-                          () => controller.heroSliderDramas.isNotEmpty
-                              ? RepaintBoundary(
-                                  child: HeroSlider(
-                                    dramas: controller.heroSliderDramas,
-                                    controller: controller,
-                                    pageController: _pageController,
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // Continue Watching
-                        Obx(
-                          () => controller.lastDramaId.value.isNotEmpty
-                              ? RepaintBoundary(
-                                  child: ContinueWatchingCard(
-                                    controller: controller,
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-
-                        // Latest Episodes
-                        RepaintBoundary(
-                          child: LatestEpisodesRow(controller: controller),
-                        ),
-
-                        // New Dramas
-                        RepaintBoundary(
-                          child: NewDramasRow(controller: controller),
-                        ),
-
-                        // Coming Soon
-                        RepaintBoundary(
-                          child: ComingSoonRow(controller: controller),
-                        ),
-
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // Search Bar
-                        HomeSearchBar(
-                          controller: controller,
-                          textController: _searchController,
-                          focusNode: _searchFocusNode,
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: Text(
-                            '🎬 All Dramas',
-                            style: AppTypography.title.copyWith(fontSize: 18),
-                          ),
-                        ),
-
-                        const CasNativeAdWidget(screenKey: 'home_screen'),
-                        const SizedBox(height: AppSpacing.md),
-                      ]),
-                    ),
-                  ),
-
-                  // Drama grid — SliverGrid for true lazy rendering
-                  // FIX #2 — homeController and watchlistController fetched
-                  // once above in build(), then passed into each DramaCard.
-                  // Zero Get.find() calls inside the builder or the card.
-                  Obx(
-                    () => SliverPadding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                      ),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.667,
-                          crossAxisSpacing: AppSpacing.md,
-                          mainAxisSpacing: AppSpacing.md,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final drama = controller.filteredDramas[index];
-                            return RepaintBoundary(
-                              child: DramaCard(
-                                drama: drama,
-                                onTap: () => controller.goToEpisodes(drama),
-                                homeController: controller,
-                                watchlistController: watchlistController,
-                              ),
-                            );
-                          },
-                          childCount: controller.filteredDramas.length,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Load More + Telegram CTA + bottom padding
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        Obx(
-                          () => controller.hasMoreDramas.value
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSpacing.lg,
-                                  ),
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      HapticFeedback.lightImpact();
-                                      controller.loadMoreDramas();
-                                    },
-                                    icon: const Icon(Icons.expand_more_rounded),
-                                    label: const Text('Load More Dramas'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 32,
-                                        vertical: 14,
-                                      ),
-                                      side: BorderSide(
-                                        color: AppColors.primaryRed.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        const TelegramCTAButton(),
-                        const SizedBox(height: AppSpacing.xl),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              // Layer 2 — Search overlay (animated in/out over the top)
+              if (controller.isSearching.value)
+                _buildSearchOverlay(controller, watchlistController),
+            ],
           ),
         );
       }),

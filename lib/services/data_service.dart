@@ -27,9 +27,8 @@ class DataService {
 
   static const String _localDramasFallback = 'assets/data/dramas.json';
 
-  // ✅ 10 min TTL — Cloudflare caches for 5 min, app caches for 10 min
-  // When data_version bumps, cache is cleared immediately anyway
-  static const Duration _episodeCacheTTL = Duration(minutes: 10);
+  // 6 hours — safe because data_version bump clears cache instantly anyway
+  static const Duration _episodeCacheTTL = Duration(hours: 6);
 
   // ── Dramas ──────────────────────────────────────────────────────────────
 

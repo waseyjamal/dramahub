@@ -33,13 +33,6 @@ class _SuggestDramaScreenState extends State<SuggestDramaScreen> {
   bool _isSubmitting = false;
   bool _submitted = false;
 
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 1), () {
-      AdService.instance.showInterstitialForScreen('suggest_drama_screen');
-    });
-  }
 
   // Submit cooldown — 1 hour between submissions (SharedPreferences)
   static const String _cooldownKey = 'suggest_drama_last_submit';
@@ -116,7 +109,10 @@ class _SuggestDramaScreenState extends State<SuggestDramaScreen> {
 
       if (success) {
         await _saveCooldown();
-        if (mounted) setState(() => _submitted = true);
+        if (mounted) {
+          setState(() => _submitted = true);
+          AdService.instance.showInterstitialForScreen('suggest_drama_screen');
+        }
       } else {
         if (mounted) {
           _showSnackbar(

@@ -18,6 +18,11 @@ class DramaModel {
   final String? premiereDate;
   final String? addedOn;
 
+  // Latest episode info — set when you upload a new episode
+  // Eliminates all episode fetches from home screen
+  final int latestEpisodeNumber;
+  final String latestEpisodeDate;
+
   DramaModel({
     required this.id,
     required this.title,
@@ -34,6 +39,8 @@ class DramaModel {
     this.isComingSoon = false,
     this.premiereDate,
     this.addedOn,
+    this.latestEpisodeNumber = 0,
+    this.latestEpisodeDate = '',
   }) : posterImage = posterImage ?? imageUrl,
        bannerImage = bannerImage ?? imageUrl;
 
@@ -54,6 +61,8 @@ class DramaModel {
       isComingSoon: json['isComingSoon'] ?? false,
       premiereDate: json['premiereDate'],
       addedOn: json['addedOn'],
+      latestEpisodeNumber: json['latest_episode_number'] ?? 0,
+      latestEpisodeDate: json['latest_episode_date'] ?? '',
     );
   }
 
@@ -74,6 +83,8 @@ class DramaModel {
       'isComingSoon': isComingSoon,
       'premiereDate': premiereDate,
       'addedOn': addedOn,
+      'latest_episode_number': latestEpisodeNumber,
+      'latest_episode_date': latestEpisodeDate,
     };
   }
 }

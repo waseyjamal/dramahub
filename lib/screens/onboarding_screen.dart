@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       useLogo: false,
       emoji: '💬',
       title: 'Join Our Community',
-      subtitle: '10,000+ drama lovers',
+      subtitle: '50,000+ drama lovers',
       description:
           'Join our Telegram channel for early episodes, behind-the-scenes updates, and drama discussions!',
       color: Color(0xFF0D47A1),

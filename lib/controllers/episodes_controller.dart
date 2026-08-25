@@ -48,6 +48,9 @@ class EpisodesController extends GetxController {
       selectedDrama = Get.arguments as DramaModel;
       skipInterstitialOnOpen = false;
       _initScreen();
+      Future.delayed(const Duration(seconds: 1), () {
+        _adService.showInterstitialForScreen('episodes_screen');
+      });
     } else if (Get.arguments != null && Get.arguments is Map) {
       final args = Get.arguments as Map;
       final drama = args['drama'];

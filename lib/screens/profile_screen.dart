@@ -349,6 +349,7 @@ class _TileData {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    // ignore: unused_element_parameter
     this.badge,
   });
 }

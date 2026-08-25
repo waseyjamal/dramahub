@@ -1,5 +1,7 @@
--keep class com.google.android.gms.common.** { *; }
+# proguard-rules.pro
+# ✅ Added Yandex Mobile Ads + Google AdMob rules at bottom
 
+-keep class com.google.android.gms.common.** { *; }
 # Keep Flutter
 -keep class io.flutter.app.** { *; }
 -keep class io.flutter.plugin.**  { *; }
@@ -14,8 +16,6 @@
 }
 -keepattributes JavascriptInterface
 -keepattributes *Annotation*
-
-# REMOVED: -keep class com.get.** (GetX is Dart/Flutter, not Java — this rule was wrong and useless)
 
 # Keep Firebase Crashlytics
 -keep class com.google.firebase.crashlytics.** { *; }
@@ -42,13 +42,13 @@
 #-dontwarn com.appodeal.**
 #-dontwarn com.explorestack.**
 
-# Unity Ads (used by Appodeal internally)
+# Unity Ads (used by LevelPlay)
 -keep class com.unity3d.ads.** { *; }
 -keep class com.unity3d.services.** { *; }
 -dontwarn com.unity3d.ads.**
 -dontwarn com.unity3d.services.**
 
-# Vungle (used by Appodeal internally)
+# Vungle/Liftoff (used by LevelPlay)
 -keep class com.vungle.** { *; }
 -dontwarn com.vungle.**
 
@@ -58,19 +58,19 @@
 -keep class com.google.android.exoplayer2.ext.** { *; }
 -dontwarn com.google.android.exoplayer2.**
 
-# OkHttp / Network (used by http package)
+# OkHttp / Network
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
 
-# Meta Audience Network (Facebook Ads) - R8 missing class fix
+# Meta Audience Network (Facebook Ads)
 -dontwarn com.facebook.infer.annotation.**
 -keep class com.facebook.infer.annotation.** { *; }
 -dontwarn com.facebook.ads.**
 -keep class com.facebook.ads.** { *; }
 
-# CAS (Clever Ads Solutions) — DISABLED (CAS commented out)
+# CAS (Clever Ads Solutions) — DISABLED
 #-dontwarn com.cleveradssolutions.**
 #-keep class com.cleveradssolutions.** { *; }
 
@@ -129,3 +129,51 @@
 # flutter_cache_manager / sqflite
 -keep class com.tekartik.sqflite.** { *; }
 -dontwarn com.tekartik.sqflite.**
+
+# ── Yandex Mobile Ads SDK ────────────────────────────────────────────
+-keep class com.yandex.mobile.ads.** { *; }
+-dontwarn com.yandex.mobile.ads.**
+-keep class com.yandex.ads.** { *; }
+-dontwarn com.yandex.ads.**
+
+# Google AdMob (required by Yandex mobileads-google adapter)
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
+-keep class com.google.ads.** { *; }
+-dontwarn com.google.ads.**
+
+# VK Ads / myTarget (Yandex ecosystem adapter)
+-keep class com.my.target.** { *; }
+-dontwarn com.my.target.**
+
+# AppNext
+-dontwarn com.appnext.**
+-keep class com.appnext.** { *; }
+
+# Digital Turbine (ex. AdColony)
+-dontwarn com.adcolony.**
+-keep class com.adcolony.** { *; }
+-dontwarn com.digitalturbine.**
+-keep class com.digitalturbine.** { *; }
+
+# Pangle (ByteDance)
+-dontwarn com.bytedance.**
+-keep class com.bytedance.** { *; }
+-dontwarn com.pangle.**
+-keep class com.pangle.** { *; }
+
+# Start.io
+-dontwarn com.startapp.**
+-keep class com.startapp.** { *; }
+
+# Tapjoy
+-dontwarn com.tapjoy.**
+-keep class com.tapjoy.** { *; }
+
+# IronSource (via Yandex mediation)
+-dontwarn com.ironsource.**
+-keep class com.ironsource.** { *; }
+
+# AppLovin (via Yandex mediation)
+-dontwarn com.applovin.**
+-keep class com.applovin.** { *; }

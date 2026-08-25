@@ -16,6 +16,11 @@ class AppConfigService {
   /// Current configuration (defaults to safe values)
   AppConfigModel _config = AppConfigModel.defaultConfig();
 
+  // Throttle — prevents hammering config on every loadDramas()
+  // Resume bypasses this — always fetches fresh on app resume
+  DateTime? _lastReloadTime;
+  static const Duration _reloadThrottle = Duration(minutes: 5);
+
   /// Public getter for config
   AppConfigModel get config => _config;
 
@@ -37,17 +42,28 @@ class AppConfigService {
     }
   }
 
-  /// ✅ NEW — Re-fetches config from GitHub and updates in memory.
-  /// Called by HomeController every time dramas are refreshed.
-  /// This makes admin changes to hero_slider_dramas reflect in user app
-  /// without needing a full app restart.
-  /// On failure: keeps current config — does NOT reset to defaults.
-  Future<void> reloadConfig() async {
+  /// Re-fetches config. Called by HomeController on loadDramas().
+  /// Throttled to 5 min — EXCEPT when forceResume=true (app came from background).
+  /// On failure: keeps current config, does NOT reset to defaults.
+  Future<void> reloadConfig({bool forceResume = false}) async {
+    final now = DateTime.now();
+    if (!forceResume &&
+        _lastReloadTime != null &&
+        now.difference(_lastReloadTime!) < _reloadThrottle) {
+      if (kDebugMode) {
+        debugPrint(
+          'AppConfigService: throttled — skipping reload '
+          '(${now.difference(_lastReloadTime!).inSeconds}s since last fetch)',
+        );
+      }
+      return;
+    }
     try {
       final RemoteConfigService remoteService = RemoteConfigService();
-      final Map<String, dynamic> configMap = await remoteService
-          .fetchAppConfig();
+      final Map<String, dynamic> configMap =
+          await remoteService.fetchAppConfig();
       _config = AppConfigModel.fromJson(configMap);
+      _lastReloadTime = now;
       if (kDebugMode) {
         debugPrint(
           'AppConfigService: reloaded — heroIds: ${_config.heroSliderDramaIds}',

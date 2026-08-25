@@ -5,7 +5,7 @@ import '../models/ad_config_model.dart';
 
 class AdConfigService {
   static const String _configUrl =
-      'https://dramahub-data.waseyjamal000.workers.dev/ad_config.json';
+      'https://dramahub-data.pages.dev/ad_config.json';
 
   static AdConfigService? _instance;
   static AdConfigService get instance => _instance ??= AdConfigService._();

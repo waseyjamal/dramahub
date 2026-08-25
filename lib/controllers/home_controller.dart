@@ -5,8 +5,9 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/drama_model.dart';
-import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/data_service.dart';
+import 'package:drama_hub/services/ad_service.dart';
+import 'package:drama_hub/services/yandex_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +22,6 @@ class HomeController extends GetxController {
   final DataService _dataService = Get.find<DataService>();
 
   static const int _pageSize = 10;
-  // ✅ Drama cache TTL reduced to 10 minutes — matches episode TTL
   static const Duration _dramaCacheTTL = Duration(minutes: 10);
 
   final RxInt _currentPage = 1.obs;
@@ -33,6 +33,7 @@ class HomeController extends GetxController {
   final RxList<DramaModel> comingSoonDramas = <DramaModel>[].obs;
   final RxList<DramaModel> newDramas = <DramaModel>[].obs;
 
+  // Built from drama data directly — zero episode network requests
   final RxList<Map<String, dynamic>> latestEpisodes =
       <Map<String, dynamic>>[].obs;
 
@@ -48,6 +49,7 @@ class HomeController extends GetxController {
   final RxInt lastEpisodeNumber = 0.obs;
 
   Timer? _searchDebounce;
+  final RxBool isSearching = false.obs;
 
   @override
   void onInit() {
@@ -66,7 +68,7 @@ class HomeController extends GetxController {
         DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      if (kDebugMode) { debugPrint('Cache save error: $e'); }
+      if (kDebugMode) debugPrint('Cache save error: $e');
     }
   }
 
@@ -77,12 +79,18 @@ class HomeController extends GetxController {
       if (jsonList.isEmpty) return [];
       return jsonList.map((e) => DramaModel.fromJson(jsonDecode(e))).toList();
     } catch (e) {
-      if (kDebugMode) { debugPrint('Cache load error: $e'); }
+      if (kDebugMode) debugPrint('Cache load error: $e');
       return [];
     }
   }
 
-  Future<void> loadDramas({bool forceRefresh = false}) async {
+  /// Main entry point for loading dramas.
+  /// [forceRefresh] — bypasses drama cache (used on pull-to-refresh).
+  /// [isResume] — bypasses config throttle (called when app comes from background).
+  Future<void> loadDramas({
+    bool forceRefresh = false,
+    bool isResume = false,
+  }) async {
     try {
       isLoading.value = true;
       hasError.value = false;
@@ -93,10 +101,8 @@ class HomeController extends GetxController {
         hasInternet.value = false;
         final cached = await _loadCachedDramas();
         if (cached.isNotEmpty) {
-          allDramas.assignAll(cached);
-          filteredDramas.assignAll(cached);
+          _applyDramas(cached);
           isOfflineCached.value = true;
-          _resolveHeroSlider(cached);
         }
         isLoading.value = false;
         return;
@@ -105,15 +111,16 @@ class HomeController extends GetxController {
       hasInternet.value = true;
       isOfflineCached.value = false;
 
-      final prefs = await SharedPreferences.getInstance();
-
-      // ✅ FIXED: No more 15-min throttle — reload config on every loadDramas()
-      // app_config.json is tiny (~500 bytes) served from Cloudflare edge
-      // This ensures data_version is always current before cache check
-      await AppConfigService.instance.reloadConfig();
+      // ── Config reload ─────────────────────────────────────────────────────
+      // isResume=true bypasses 5-min throttle so user sees new content
+      // immediately when they return to the app after you upload something.
+      // Normal navigation respects the throttle to save requests.
+      await AppConfigService.instance.reloadConfig(forceResume: isResume);
       _checkAndShowUpdateDialog();
 
-      // ✅ Version check — clears all caches if data_version bumped
+      final prefs = await SharedPreferences.getInstance();
+
+      // ── Version check — clears all caches if data_version bumped ─────────
       final newVersion = AppConfigService.instance.config.dataVersion;
       final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
       if (newVersion != savedVersion) {
@@ -134,7 +141,7 @@ class HomeController extends GetxController {
         await prefs.setInt(StorageKeys.dataVersion, newVersion);
       }
 
-      // ✅ Check drama cache AFTER version check — 10 min TTL
+      // ── Drama cache check ─────────────────────────────────────────────────
       final cacheTime = prefs.getInt(StorageKeys.cachedDramasTime) ?? 0;
       final cacheAge = DateTime.now().millisecondsSinceEpoch - cacheTime;
       final isCacheFresh =
@@ -143,69 +150,26 @@ class HomeController extends GetxController {
       if (isCacheFresh) {
         final cached = await _loadCachedDramas();
         if (cached.isNotEmpty) {
-          if (kDebugMode) { debugPrint('Drama cache hit — ${cached.length} dramas'); }
-          final now = DateTime.now();
-          final comingSoonCached = cached.where((d) {
-            if (!d.isComingSoon) return false;
-            if (d.premiereDate == null || d.premiereDate!.isEmpty) return true;
-            final premiere = DateTime.tryParse(d.premiereDate!);
-            if (premiere == null) return true;
-            return now.isBefore(premiere);
-          }).toList();
-          final regularCached = cached.where((d) {
-            if (!d.isComingSoon) return true;
-            if (d.premiereDate == null || d.premiereDate!.isEmpty) return false;
-            final premiere = DateTime.tryParse(d.premiereDate!);
-            if (premiere == null) return false;
-            return !now.isBefore(premiere);
-          }).toList();
-          comingSoonDramas.assignAll(comingSoonCached);
-          allDramas.assignAll(regularCached);
-          _currentPage.value = 1;
-          hasMoreDramas.value = regularCached.length > _pageSize;
-          filteredDramas.assignAll(regularCached.take(_pageSize).toList());
-          _resolveHeroSlider(regularCached);
-          // ✅ Background refresh latest episodes even on cache hit
-          _resolveNewDramas(cached);
-          _loadLatestEpisodes(cached);
+          if (kDebugMode) {
+            debugPrint('Drama cache hit — ${cached.length} dramas');
+          }
+          _applyDramas(cached);
           isLoading.value = false;
           return;
         }
       }
 
+      // ── Fresh fetch from CDN ──────────────────────────────────────────────
       final loadedDramas = await _dataService.loadDramas();
       final activeDramas = loadedDramas.where((d) => d.isActive).toList()
         ..sort((a, b) => a.order.compareTo(b.order));
 
-      final now = DateTime.now();
-      final comingSoon = activeDramas.where((d) {
-        if (!d.isComingSoon) return false;
-        if (d.premiereDate == null || d.premiereDate!.isEmpty) return true;
-        final premiere = DateTime.tryParse(d.premiereDate!);
-        if (premiere == null) return true;
-        return now.isBefore(premiere);
-      }).toList();
-      final regularDramas = activeDramas.where((d) {
-        if (!d.isComingSoon) return true;
-        if (d.premiereDate == null || d.premiereDate!.isEmpty) return false;
-        final premiere = DateTime.tryParse(d.premiereDate!);
-        if (premiere == null) return false;
-        return !now.isBefore(premiere);
-      }).toList();
-
-      comingSoonDramas.assignAll(comingSoon);
-      allDramas.assignAll(regularDramas);
-      _currentPage.value = 1;
-      hasMoreDramas.value = regularDramas.length > _pageSize;
-      filteredDramas.assignAll(regularDramas.take(_pageSize).toList());
       _analytics.logAppOpen();
       _preloadImages(activeDramas);
       await _cacheDramas(activeDramas);
-      _resolveHeroSlider(activeDramas);
-      _resolveNewDramas(activeDramas);
-      _loadLatestEpisodes(activeDramas);
+      _applyDramas(activeDramas);
     } catch (e) {
-      if (kDebugMode) { debugPrint('Error loading dramas: $e'); }
+      if (kDebugMode) debugPrint('Error loading dramas: $e');
       hasError.value = true;
       errorMessage.value = 'Something went wrong. Please try again.';
     } finally {
@@ -213,10 +177,85 @@ class HomeController extends GetxController {
     }
   }
 
+  /// Splits dramas into categories and builds all reactive lists.
+  /// Called from both cache-hit and fresh-fetch paths.
+  /// Zero network requests — everything built from drama data.
+  void _applyDramas(List<DramaModel> allActive) {
+    final now = DateTime.now();
+
+    final comingSoon = allActive.where((d) {
+      if (!d.isComingSoon) return false;
+      if (d.premiereDate == null || d.premiereDate!.isEmpty) return true;
+      final premiere = DateTime.tryParse(d.premiereDate!);
+      if (premiere == null) return true;
+      return now.isBefore(premiere);
+    }).toList();
+
+    final regular = allActive.where((d) {
+      if (!d.isComingSoon) return true;
+      if (d.premiereDate == null || d.premiereDate!.isEmpty) return false;
+      final premiere = DateTime.tryParse(d.premiereDate!);
+      if (premiere == null) return false;
+      return !now.isBefore(premiere);
+    }).toList();
+
+    comingSoonDramas.assignAll(comingSoon);
+    allDramas.assignAll(regular);
+    _currentPage.value = 1;
+    hasMoreDramas.value = regular.length > _pageSize;
+    filteredDramas.assignAll(regular.take(_pageSize).toList());
+
+    _resolveHeroSlider(allActive);
+    _resolveNewDramas(allActive);
+
+    // ✅ Build latest episodes from drama data — ZERO network requests.
+    // Requires latest_episode_number + latest_episode_date in dramas.json.
+    // When you upload a new episode, update those two fields + bump data_version.
+    _buildLatestEpisodesFromDramas(regular);
+  }
+
+  /// Builds the "Latest Episodes" home section from drama model data.
+  /// No HTTP calls. Uses latest_episode_number + latest_episode_date
+  /// fields you set in dramas.json when uploading new episodes.
+  void _buildLatestEpisodesFromDramas(List<DramaModel> dramas) {
+    try {
+      final List<Map<String, dynamic>> results = [];
+
+      for (final drama in dramas) {
+        // Skip dramas with no episode info set yet
+        if (drama.latestEpisodeNumber <= 0) continue;
+        if (drama.latestEpisodeDate.isEmpty) continue;
+
+        results.add({
+          'drama': drama,
+          'episodeNumber': drama.latestEpisodeNumber,
+          'episodeDate': drama.latestEpisodeDate,
+        });
+      }
+
+      // Sort by latest episode date descending — newest first
+      results.sort((a, b) {
+        final dateA =
+            DateTime.tryParse(a['episodeDate'] as String) ?? DateTime(2000);
+        final dateB =
+            DateTime.tryParse(b['episodeDate'] as String) ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+
+      latestEpisodes.assignAll(results.take(10).toList());
+    } catch (e) {
+      if (kDebugMode) debugPrint('_buildLatestEpisodesFromDramas error: $e');
+      latestEpisodes.clear();
+    }
+  }
+
   void _resolveNewDramas(List<DramaModel> dramas) {
     try {
       final withTimestamp = dramas
-          .where((d) => !d.isComingSoon && d.addedOn != null && d.addedOn!.isNotEmpty)
+          .where(
+            (d) =>
+                !d.isComingSoon && d.addedOn != null && d.addedOn!.isNotEmpty,
+          )
           .toList();
 
       withTimestamp.sort((a, b) {
@@ -227,7 +266,7 @@ class HomeController extends GetxController {
 
       newDramas.assignAll(withTimestamp.take(10).toList());
     } catch (e) {
-      if (kDebugMode) { debugPrint('New dramas resolve error: $e'); }
+      if (kDebugMode) debugPrint('New dramas resolve error: $e');
       newDramas.clear();
     }
   }
@@ -251,65 +290,8 @@ class HomeController extends GetxController {
 
       heroSliderDramas.assignAll(dramas.take(3).toList());
     } catch (e) {
-      if (kDebugMode) { debugPrint('Hero slider resolve error: $e'); }
+      if (kDebugMode) debugPrint('Hero slider resolve error: $e');
       heroSliderDramas.assignAll(dramas.take(3).toList());
-    }
-  }
-
-  Future<void> _loadLatestEpisodes(List<DramaModel> dramas) async {
-    try {
-      final List<Map<String, dynamic>> results = [];
-
-      const int maxConcurrent = 5;
-      int active = 0;
-      int index = 0;
-
-      Future<void> processNext() async {
-        while (index < dramas.length) {
-          if (active >= maxConcurrent) {
-            await Future.delayed(const Duration(milliseconds: 100));
-            continue;
-          }
-          final drama = dramas[index++];
-          active++;
-
-          unawaited(
-            (() async {
-              try {
-                final episodes = await _dataService.loadEpisodes(drama.id);
-                if (episodes.isNotEmpty) {
-                  final released = episodes.where((e) => e.isReleased).toList()
-                    ..sort(
-                      (a, b) => b.episodeNumber.compareTo(a.episodeNumber),
-                    );
-                  if (released.isNotEmpty) {
-                    results.add({'episode': released.first, 'drama': drama});
-                  }
-                }
-              } catch (e) {
-                if (kDebugMode) { debugPrint('Episode load failed for ${drama.id}: $e'); }
-              } finally {
-                active--;
-              }
-            })(),
-          );
-        }
-      }
-
-      await processNext();
-      while (active > 0) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-
-      results.sort((a, b) {
-        final epA = a['episode'] as EpisodeModel;
-        final epB = b['episode'] as EpisodeModel;
-        return epB.releaseDate.compareTo(epA.releaseDate);
-      });
-
-      latestEpisodes.assignAll(results.take(10).toList());
-    } catch (e) {
-      if (kDebugMode) { debugPrint('Error loading latest episodes: $e'); }
     }
   }
 
@@ -335,6 +317,7 @@ class HomeController extends GetxController {
   }
 
   void goToEpisodes(DramaModel drama) {
+    YandexService.instance.onUserNavigated();
     _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
@@ -347,6 +330,7 @@ class HomeController extends GetxController {
 
   void goToEpisodesSkipAd(DramaModel drama) {
     Get.delete<EpisodesController>(force: true);
+    YandexService.instance.onUserNavigated();
     _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
@@ -359,16 +343,17 @@ class HomeController extends GetxController {
 
   void goToLastWatchedEpisode() {
     if (lastDramaId.value.isEmpty || lastEpisodeNumber.value == 0) return;
+    YandexService.instance.onUserNavigated();
 
     final drama = allDramas.firstWhereOrNull((d) => d.id == lastDramaId.value);
     if (drama == null) return;
 
-    // 🚀 INSTANT NAVIGATION (Sliding Transition)
-    // Matches the "Home to Episodes" feel.
-    Get.toNamed(
-      AppRoutes.episodes,
-      arguments: {'drama': drama, 'autoPlayEpisode': lastEpisodeNumber.value},
-    )?.then((_) => loadLastWatched());
+    AdService.instance.showInterstitialForScreen('continue_watching').then((_) {
+      Get.toNamed(
+        AppRoutes.episodes,
+        arguments: {'drama': drama, 'autoPlayEpisode': lastEpisodeNumber.value},
+      )?.then((_) => loadLastWatched());
+    });
   }
 
   void filterDramas(String query) {
@@ -401,8 +386,6 @@ class HomeController extends GetxController {
     }
   }
 
-  // ✅ Force update safety net — runs after reloadConfig() on home load
-  // Catches users whose startup check timed out on slow connections
   bool _updateDialogShown = false;
 
   void _checkAndShowUpdateDialog() {
@@ -411,10 +394,7 @@ class HomeController extends GetxController {
     if (config.latestVersion <= Constants.currentBuildVersion) return;
     if (!config.forceUpdate) return;
     _updateDialogShown = true;
-    Get.dialog(
-      _buildUpdateDialog(force: true),
-      barrierDismissible: false,
-    );
+    Get.dialog(_buildUpdateDialog(force: true), barrierDismissible: false);
   }
 
   Widget _buildUpdateDialog({required bool force}) {
@@ -455,8 +435,6 @@ class HomeController extends GetxController {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-
-            // ── Soft update dismiss (non-force only) ──
             if (!force)
               TextButton(
                 onPressed: () => Get.back(),
@@ -465,9 +443,6 @@ class HomeController extends GetxController {
                   style: TextStyle(color: Colors.white54),
                 ),
               ),
-
-            // ── Play Store button ──
-            // Shows if enabled OR if all options are disabled (safety fallback)
             if (fallback.playstoreEnabled || !fallback.hasAtLeastOneOption)
               SizedBox(
                 width: double.infinity,
@@ -494,8 +469,6 @@ class HomeController extends GetxController {
                   ),
                 ),
               ),
-
-            // ── Fallback A: Telegram (admin controlled) ──
             if (fallback.telegramEnabled) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -527,8 +500,6 @@ class HomeController extends GetxController {
                 ),
               ),
             ],
-
-            // ── Fallback B: Website (admin controlled) ──
             if (fallback.websiteEnabled) ...[
               const SizedBox(height: 10),
               SizedBox(

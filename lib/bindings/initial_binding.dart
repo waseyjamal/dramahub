@@ -17,7 +17,7 @@ class InitialBinding extends Bindings {
     // Was initializing at startup even though only needed on VideoScreen
     Get.lazyPut<VideoService>(() => VideoService(), fenix: true);
 
-    // CasService already registered in main.dart before runApp
+    // ✅ YandexService already registered in main.dart before runApp
     // Only register AdService and VastAdService here
     Get.put(AdService(), permanent: true);
     Get.put(VastAdService(), permanent: true);

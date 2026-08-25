@@ -485,6 +485,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
       _endedHandled = true;
       WakelockPlus.disable();
       _clearWatchProgress();
+      AdService.instance.showInterstitialForScreen('video_screen');
     } else if (value.position < value.duration) {
       _endedHandled = false;
       _autoSaveProgress();

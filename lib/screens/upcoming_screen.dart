@@ -10,6 +10,7 @@ import 'package:drama_hub/ui_system/typography.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:drama_hub/utils/constants.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 
 /// Upcoming Episode screen
 ///
@@ -49,7 +50,9 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                 // Banner Section
                 _BannerSection(controller: controller),
 
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.md),
+                const YandexBannerAdWidget(screenKey: 'upcoming_screen'),
+                const SizedBox(height: AppSpacing.md),
 
                 // Timer Section
                 _TimerSection(controller: controller),

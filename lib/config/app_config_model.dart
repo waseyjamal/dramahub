@@ -62,7 +62,7 @@ class AppConfigModel {
       dataVersion: json['data_version'] ?? 1,
       cdnBase: (json['cdn_base'] as String?)?.trim().isNotEmpty == true
           ? (json['cdn_base'] as String).trim().replaceAll(RegExp(r'/$'), '')
-          : 'https://dramahub-data.waseyjamal000.workers.dev',
+          : 'https://dramahub-data.pages.dev',
       instagramUrl:
           json['instagram_url'] ?? 'https://instagram.com/dramas_hubs',
       websiteUrl: json['website_url'] ?? 'https://dramahubs.stream/',
@@ -87,7 +87,7 @@ class AppConfigModel {
       forceUpdate: false,
       heroSliderDramaIds: [],
       dataVersion: 1,
-      cdnBase: 'https://dramahub-data.waseyjamal000.workers.dev',
+      cdnBase: 'https://dramahub-data.pages.dev',
       instagramUrl: 'https://instagram.com/dramas_hubs',
       websiteUrl: 'https://dramahubs.stream/',
       telegramBotToken: '',

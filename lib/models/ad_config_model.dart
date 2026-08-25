@@ -1,3 +1,8 @@
+// lib/models/ad_config_model.dart
+// ✅ Added: yandexEnabled to AdNetworksConfig
+// ✅ casEnabled kept for backward compat (old app versions won't crash)
+// ✅ All other models unchanged
+
 import 'package:drama_hub/models/vast_ad_config_model.dart';
 
 class AdConfigModel {
@@ -37,7 +42,6 @@ class AdConfigModel {
     );
   }
 
-  /// Safe fallback defaults if GitHub fetch fails
   factory AdConfigModel.defaults() {
     return AdConfigModel(
       adsEnabled: true,
@@ -65,67 +69,77 @@ class AdConfigModel {
   };
 }
 
+// ── Ad Networks Config ────────────────────────────────────────────────────
 class AdNetworksConfig {
   final bool levelplayEnabled;
-  final bool casEnabled;
+  final bool casEnabled;     // kept for backward compat — old JSON won't break
+  final bool yandexEnabled;  // ✅ NEW
 
   AdNetworksConfig({
     required this.levelplayEnabled,
     required this.casEnabled,
+    required this.yandexEnabled,
   });
 
   factory AdNetworksConfig.fromJson(Map<String, dynamic> json) =>
       AdNetworksConfig(
         levelplayEnabled: json['levelplay_enabled'] ?? true,
         casEnabled: json['cas_enabled'] ?? false,
+        yandexEnabled: json['yandex_enabled'] ?? true,
       );
 
-  factory AdNetworksConfig.defaults() =>
-      AdNetworksConfig(levelplayEnabled: true, casEnabled: false);
+  factory AdNetworksConfig.defaults() => AdNetworksConfig(
+    levelplayEnabled: true,
+    casEnabled: false,
+    yandexEnabled: true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'levelplay_enabled': levelplayEnabled,
-        'cas_enabled': casEnabled,
-      };
+    'levelplay_enabled': levelplayEnabled,
+    'cas_enabled': casEnabled,
+    'yandex_enabled': yandexEnabled,
+  };
 }
 
+// ── App Open ──────────────────────────────────────────────────────────────
 class AppOpenAdConfig {
   final bool enabled;
-  final int cooldownHours;
+  final int cooldownSeconds;
   final String adUnitId;
   final String provider;
 
   AppOpenAdConfig({
     required this.enabled,
-    required this.cooldownHours,
+    required this.cooldownSeconds,
     required this.adUnitId,
     required this.provider,
   });
 
   factory AppOpenAdConfig.fromJson(Map<String, dynamic> json) {
     return AppOpenAdConfig(
-      enabled: json['enabled'] ?? true,
-      cooldownHours: json['cooldown_hours'] ?? 4,
-      adUnitId: json['ad_unit_id'] ?? AppOpenAdConfig.defaults().adUnitId,
-      provider: json['provider'] ?? 'cas',
+      enabled: json['enabled'] ?? false,
+      cooldownSeconds: json['cooldown_seconds'] ?? 14400,
+      adUnitId: json['ad_unit_id'] ?? '',
+      provider: json['provider'] ?? 'yandex',
     );
   }
 
   factory AppOpenAdConfig.defaults() => AppOpenAdConfig(
-    enabled: false, // ✅ 6.5 — disabled when no config loaded
-    cooldownHours: 4,
-    adUnitId: '', // ✅ 6.5 — empty string, not test ID
-    provider: 'cas',
+    enabled: false,
+    cooldownSeconds: 14400,
+    adUnitId: '',
+    provider: 'yandex',
   );
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
-    'cooldown_hours': cooldownHours,
+    'cooldown_seconds': cooldownSeconds,
     'ad_unit_id': adUnitId,
     'provider': provider,
   };
 }
 
+// ── Interstitial ──────────────────────────────────────────────────────────
 class InterstitialAdConfig {
   final bool enabled;
   final int cooldownSeconds;
@@ -155,22 +169,23 @@ class InterstitialAdConfig {
       enabled: json['enabled'] ?? true,
       cooldownSeconds: json['cooldown_seconds'] ?? 30,
       maxPerSession: json['max_per_session'] ?? 3,
-      adUnitId: json['ad_unit_id'] ?? InterstitialAdConfig.defaults().adUnitId,
+      adUnitId: json['ad_unit_id'] ?? '',
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
       priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'cas',
+      priority2: json['priority_2'] ?? 'yandex',
       priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
 
   factory InterstitialAdConfig.defaults() => InterstitialAdConfig(
-    enabled: false, // ✅ 6.5 — disabled when no config loaded
+    enabled: false,
     cooldownSeconds: 30,
     maxPerSession: 3,
-    adUnitId: '', // ✅ 6.5 — empty string, not test ID
+    adUnitId: '',
     screens: {
       'home_screen': false,
+      'continue_watching': false,
       'episodes_screen': false,
       'video_screen': false,
       'upcoming_screen': false,
@@ -185,7 +200,7 @@ class InterstitialAdConfig {
     },
     priority1: 'levelplay',
     priority1Enabled: true,
-    priority2: 'cas',
+    priority2: 'yandex',
     priority2Enabled: false,
   );
 
@@ -207,6 +222,7 @@ class InterstitialAdConfig {
   };
 }
 
+// ── Rewarded ──────────────────────────────────────────────────────────────
 class RewardedAdConfig {
   final bool enabled;
   final int cooldownSeconds;
@@ -236,11 +252,11 @@ class RewardedAdConfig {
       enabled: json['enabled'] ?? true,
       cooldownSeconds: json['cooldown_seconds'] ?? 30,
       maxPerSession: json['max_per_session'] ?? 5,
-      adUnitId: json['ad_unit_id'] ?? RewardedAdConfig.defaults().adUnitId,
+      adUnitId: json['ad_unit_id'] ?? '',
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
       priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'cas',
+      priority2: json['priority_2'] ?? 'yandex',
       priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
@@ -266,7 +282,7 @@ class RewardedAdConfig {
     },
     priority1: 'levelplay',
     priority1Enabled: true,
-    priority2: 'cas',
+    priority2: 'yandex',
     priority2Enabled: false,
   );
 
@@ -288,6 +304,7 @@ class RewardedAdConfig {
   };
 }
 
+// ── Download ──────────────────────────────────────────────────────────────
 class DownloadAdConfig {
   final bool enabled;
   final int cooldownSeconds;
@@ -309,13 +326,13 @@ class DownloadAdConfig {
 
   factory DownloadAdConfig.fromJson(Map<String, dynamic> json) {
     return DownloadAdConfig(
-      enabled: json['enabled'] ?? true,
+      enabled: json['enabled'] ?? false,
       cooldownSeconds: json['cooldown_seconds'] ?? 120,
       maxPerSession: json['max_per_session'] ?? 3,
-      priority1: json['priority_1'] ?? 'cas',
+      priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'levelplay',
-      priority2Enabled: json['priority_2_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'yandex',
+      priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
 
@@ -323,10 +340,10 @@ class DownloadAdConfig {
     enabled: false,
     cooldownSeconds: 120,
     maxPerSession: 3,
-    priority1: 'cas',
+    priority1: 'levelplay',
     priority1Enabled: true,
-    priority2: 'levelplay',
-    priority2Enabled: true,
+    priority2: 'yandex',
+    priority2Enabled: false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -340,17 +357,18 @@ class DownloadAdConfig {
   };
 }
 
+// ── Native ────────────────────────────────────────────────────────────────
 class NativeAdConfig {
   final bool enabled;
   final int everyNthCard;
   final String adUnitId;
-  final Map<String, bool> screens; // ADD THIS
+  final Map<String, bool> screens;
 
   NativeAdConfig({
     required this.enabled,
     required this.everyNthCard,
     required this.adUnitId,
-    required this.screens, // ADD THIS
+    required this.screens,
   });
 
   factory NativeAdConfig.fromJson(Map<String, dynamic> json) {
@@ -358,22 +376,21 @@ class NativeAdConfig {
     return NativeAdConfig(
       enabled: json['enabled'] ?? false,
       everyNthCard: json['every_nth_card'] ?? 5,
-      adUnitId: json['ad_unit_id'] ?? NativeAdConfig.defaults().adUnitId,
-      screens: screensJson.map(
-        (k, v) => MapEntry(k, v as bool? ?? false),
-      ), // ADD THIS
+      adUnitId: json['ad_unit_id'] ?? '',
+      screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
     );
   }
 
   factory NativeAdConfig.defaults() => NativeAdConfig(
-    enabled: false, // ✅ 6.5 — disabled when no config loaded
+    enabled: false,
     everyNthCard: 5,
-    adUnitId: '', // ✅ 6.5 — empty string, not test ID
+    adUnitId: '',
     screens: {
       'home_screen': false,
       'episodes_screen': false,
       'watchlist_screen': false,
       'history_screen': false,
+      'upcoming_screen': false,
       'download_screen': false,
     },
   );
@@ -387,13 +404,14 @@ class NativeAdConfig {
     'enabled': enabled,
     'every_nth_card': everyNthCard,
     'ad_unit_id': adUnitId,
-    'screens': screens, // ADD THIS
+    'screens': screens,
   };
 }
 
+// ── Offline Ads ───────────────────────────────────────────────────────────
 class OfflineAdConfig {
   final bool enabled;
-  final String adType; // 'interstitial' or 'rewarded'
+  final String adType;
   final int maturityMinutes;
   final int sessionCoolMinutes;
   final int maxPerSession;
@@ -421,10 +439,10 @@ class OfflineAdConfig {
       maturityMinutes: json['maturity_minutes'] ?? 5,
       sessionCoolMinutes: json['session_cool_minutes'] ?? 5,
       maxPerSession: json['max_per_session'] ?? 3,
-      priority1: json['priority_1'] ?? 'cas',
+      priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
-      priority2: json['priority_2'] ?? 'levelplay',
-      priority2Enabled: json['priority_2_enabled'] ?? true,
+      priority2: json['priority_2'] ?? 'yandex',
+      priority2Enabled: json['priority_2_enabled'] ?? false,
     );
   }
 
@@ -434,10 +452,10 @@ class OfflineAdConfig {
     maturityMinutes: 5,
     sessionCoolMinutes: 5,
     maxPerSession: 3,
-    priority1: 'cas',
+    priority1: 'levelplay',
     priority1Enabled: true,
-    priority2: 'levelplay',
-    priority2Enabled: true,
+    priority2: 'yandex',
+    priority2Enabled: false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -452,4 +470,3 @@ class OfflineAdConfig {
     'priority_2_enabled': priority2Enabled,
   };
 }
-

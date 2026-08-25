@@ -15,6 +15,7 @@ import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 
 class DownloadsScreen extends StatelessWidget {
   const DownloadsScreen({super.key});
@@ -36,6 +37,10 @@ class DownloadsScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: YandexBannerAdWidget(screenKey: 'download_screen'),
+            ),
             // ✅ Storage summary
             _StorageSummary(service: service),
             const SizedBox(height: AppSpacing.lg),

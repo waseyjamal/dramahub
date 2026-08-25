@@ -7,7 +7,7 @@ import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
-import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -17,11 +17,6 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<HistoryController>();
@@ -55,7 +50,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               AppSpacing.lg,
               0,
             ),
-            child: CasNativeAdWidget(screenKey: 'history_screen'),
+            child: YandexBannerAdWidget(screenKey: 'history_screen'),
           ),
           Expanded(
             child: Obx(() {

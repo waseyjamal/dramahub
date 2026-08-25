@@ -505,12 +505,12 @@ class _CustomVideoPlayerState extends State<CustomVideoPlayer>
       PageRouteBuilder(
         opaque: true,
         barrierColor: Colors.black,
-        pageBuilder: (_, __, ___) => _FullscreenPlayerRoute(
+        pageBuilder: (context, animation, secondaryAnimation) => _FullscreenPlayerRoute(
           controller: widget.controller,
           title: widget.title,
         ),
         transitionDuration: const Duration(milliseconds: 200),
-        transitionsBuilder: (__, animation, ___, child) =>
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
     );

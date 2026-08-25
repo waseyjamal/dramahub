@@ -1,6 +1,6 @@
 import 'package:drama_hub/utils/constants.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:drama_hub/widgets/cas_native_ad_widget.dart';
+import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -28,7 +28,8 @@ class EpisodesScreen extends GetView<EpisodesController> {
         centerTitle: true,
       ),
       body: Obx(() {
-        if (controller.isLoading.value && !controller.isComingSoonActive.value) {
+        if (controller.isLoading.value &&
+            !controller.isComingSoonActive.value) {
           return const _EpisodesSkeletonLoader();
         }
         if (!controller.hasInternet.value) return _buildNoInternet();
@@ -64,8 +65,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
             ),
           ),
         ],
@@ -100,8 +100,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
             ),
           ),
         ],
@@ -118,8 +117,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: AppSpacing.lg),
@@ -144,9 +142,11 @@ class EpisodesScreen extends GetView<EpisodesController> {
                   ),
 
                   // Coming Soon block OR normal content
-                  Obx(() => controller.isComingSoonActive.value
-                      ? _ComingSoonBlock(controller: controller)
-                      : _NormalContent(controller: controller)),
+                  Obx(
+                    () => controller.isComingSoonActive.value
+                        ? _ComingSoonBlock(controller: controller)
+                        : _NormalContent(controller: controller),
+                  ),
                 ]),
               ),
             ),
@@ -163,8 +163,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('📺',
-                            style: TextStyle(fontSize: 64)),
+                        const Text('📺', style: TextStyle(fontSize: 64)),
                         const SizedBox(height: 16),
                         const Text(
                           'No Episodes Found',
@@ -177,8 +176,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
                         const SizedBox(height: 8),
                         Text(
                           'Episodes are coming soon. Stay tuned!',
-                          style: TextStyle(
-                              color: Colors.white54, fontSize: 14),
+                          style: TextStyle(color: Colors.white54, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -187,38 +185,31 @@ class EpisodesScreen extends GetView<EpisodesController> {
                 );
               }
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverGrid(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.667,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index >=
-                          controller.filteredEpisodes.length) {
-                        return const SizedBox.shrink();
-                      }
-                      final episode =
-                          controller.filteredEpisodes[index];
-                      return _EpisodeCard(
-                        episode: episode,
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          if (episode.isPremium) {
-                            Get.toNamed(AppRoutes.premium);
-                          } else {
-                            controller.openEpisode(episode);
-                          }
-                        },
-                      );
-                    },
-                    childCount: controller.filteredEpisodes.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index >= controller.filteredEpisodes.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final episode = controller.filteredEpisodes[index];
+                    return _EpisodeCard(
+                      episode: episode,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        if (episode.isPremium) {
+                          Get.toNamed(AppRoutes.premium);
+                        } else {
+                          controller.openEpisode(episode);
+                        }
+                      },
+                    );
+                  }, childCount: controller.filteredEpisodes.length),
                 ),
               );
             }),
@@ -248,9 +239,18 @@ class _ComingSoonBlock extends StatelessWidget {
       try {
         final date = DateTime.parse(drama.premiereDate!);
         const months = [
-          'January', 'February', 'March', 'April',
-          'May', 'June', 'July', 'August',
-          'September', 'October', 'November', 'December'
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December',
         ];
         premiereFormatted =
             '${date.day} ${months[date.month - 1]} ${date.year}';
@@ -323,7 +323,9 @@ class _ComingSoonBlock extends StatelessWidget {
         // Countdown timer
         Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg, vertical: 22),
+            horizontal: AppSpacing.lg,
+            vertical: 22,
+          ),
           decoration: BoxDecoration(
             color: AppColors.cardBackground,
             borderRadius: BorderRadius.circular(AppRadius.large),
@@ -333,17 +335,13 @@ class _ComingSoonBlock extends StatelessWidget {
             () => Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _CsTimeBox(
-                    value: controller.csDays.value, label: 'DAYS'),
+                _CsTimeBox(value: controller.csDays.value, label: 'DAYS'),
                 _CsDivider(),
-                _CsTimeBox(
-                    value: controller.csHours.value, label: 'HOURS'),
+                _CsTimeBox(value: controller.csHours.value, label: 'HOURS'),
                 _CsDivider(),
-                _CsTimeBox(
-                    value: controller.csMinutes.value, label: 'MINS'),
+                _CsTimeBox(value: controller.csMinutes.value, label: 'MINS'),
                 _CsDivider(),
-                _CsTimeBox(
-                    value: controller.csSeconds.value, label: 'SECS'),
+                _CsTimeBox(value: controller.csSeconds.value, label: 'SECS'),
               ],
             ),
           ),
@@ -470,7 +468,7 @@ class _NormalContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         const _SearchBar(),
         const SizedBox(height: AppSpacing.md),
-        CasNativeAdWidget(screenKey: 'episodes_screen'),
+        YandexBannerAdWidget(screenKey: 'episodes_screen'),
         const SizedBox(height: AppSpacing.xl),
       ],
     );
@@ -529,8 +527,7 @@ class _EpisodesSkeletonLoader extends StatelessWidget {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 0.667,
                 crossAxisSpacing: 12,
@@ -590,7 +587,9 @@ class _DramaHeader extends StatelessWidget {
               right: AppSpacing.md,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -598,8 +597,11 @@ class _DramaHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star_rounded,
-                        color: AppColors.goldAccent, size: 14),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: AppColors.goldAccent,
+                      size: 14,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       drama.rating.toStringAsFixed(1),
@@ -699,13 +701,13 @@ class _SearchBar extends StatelessWidget {
         style: AppTypography.body,
         decoration: InputDecoration(
           hintText: 'Search episode...',
-          hintStyle:
-              AppTypography.body.copyWith(color: AppColors.softGrey),
-          prefixIcon:
-              const Icon(Icons.search, color: AppColors.softGrey),
+          hintStyle: AppTypography.body.copyWith(color: AppColors.softGrey),
+          prefixIcon: const Icon(Icons.search, color: AppColors.softGrey),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg, vertical: 12),
+            horizontal: AppSpacing.lg,
+            vertical: 12,
+          ),
         ),
       ),
     );
@@ -743,8 +745,7 @@ class _EpisodeCard extends StatelessWidget {
                         placeholder: (context, url) => Container(
                           color: AppColors.secondaryDark,
                           child: const Center(
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
                         errorWidget: (context, url, error) => Container(
@@ -795,8 +796,7 @@ class _EpisodeCard extends StatelessWidget {
                       'EP ${episode.episodeNumber}',
                       style: AppTypography.headlineMedium.copyWith(
                         fontSize: 32,
-                        color:
-                            AppColors.white.withValues(alpha: 0.15),
+                        color: AppColors.white.withValues(alpha: 0.15),
                       ),
                     ),
                   ),
@@ -811,8 +811,11 @@ class _EpisodeCard extends StatelessWidget {
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.3),
                     child: const Center(
-                      child: Icon(Icons.lock,
-                          color: AppColors.primaryRed, size: 48),
+                      child: Icon(
+                        Icons.lock,
+                        color: AppColors.primaryRed,
+                        size: 48,
+                      ),
                     ),
                   ),
                 ),

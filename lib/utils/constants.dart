@@ -3,12 +3,12 @@ import 'package:drama_hub/config/app_config_service.dart';
 class Constants {
   // App info
   static const String appName = 'Drama Hub';
-  static const String appVersion = '1.1.0';
+  static const String appVersion = '1.2.1';
 
   // ✅ ADDED — Single source of truth for current app version
   // Update this ONLY when releasing a new build
   // Matches versionCode in android/app/build.gradle.kts
-  static const int currentBuildVersion = 11;
+  static const int currentBuildVersion = 13;
 
   // API (placeholder for future use)
   static const String baseUrl = '';
@@ -69,7 +69,7 @@ class AppUrls {
   static const String playStore =
       'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub';
   static const String githubDataBase =
-      'https://dramahub-data.waseyjamal000.workers.dev';
+      'https://dramahub-data.pages.dev';
 
   static bool isSafeUrl(String url) {
     final uri = Uri.tryParse(url);

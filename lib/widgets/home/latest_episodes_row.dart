@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/models/drama_model.dart';
-import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
@@ -43,8 +42,8 @@ class LatestEpisodesRow extends StatelessWidget {
               itemCount: episodes.length,
               itemBuilder: (context, index) {
                 final item = episodes[index];
-                final episode = item['episode'] as EpisodeModel;
                 final drama = item['drama'] as DramaModel;
+                final episodeNumber = item['episodeNumber'] as int;
 
                 return InkWell(
                   onTap: () {
@@ -137,7 +136,7 @@ class LatestEpisodesRow extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  'Episode ${episode.episodeNumber}',
+                                  'Episode $episodeNumber',
                                   style: AppTypography.caption.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
