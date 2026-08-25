@@ -94,8 +94,9 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openOfflinePlayer(dynamic episode) async {
-    final playbackPath =
-        await DownloadService.instance.getPlaybackPath(episode.episodeId);
+    final playbackPath = await DownloadService.instance.getPlaybackPath(
+      episode.episodeId,
+    );
     if (!mounted) return;
     if (playbackPath == null) {
       AppSnackbar.error(
@@ -109,10 +110,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     }
 
     await Get.to(
-      () => OfflinePlayerScreen(
-        episode: episode,
-        filePath: playbackPath,
-      ),
+      () => OfflinePlayerScreen(episode: episode, filePath: playbackPath),
       transition: Transition.downToUp,
     );
 
@@ -160,7 +158,9 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
       }
 
       if (controller.isCustomPlayer.value) {
-        if (controller.streamUrl.value.isEmpty) return;
+        if (controller.episode.mp4Url.isEmpty &&
+            controller.episode.streamUrl.isEmpty)
+          return;
 
         final vastService = VastAdService.instance;
         if (vastService.canShowAd()) {
@@ -335,8 +335,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
       if (duration != null && saved > duration.inSeconds - 60) return;
       await _customPlayerController?.seekTo(Duration(seconds: saved));
       if (kDebugMode) {
-        debugPrint(
-            'Progress restored: ${saved}s for ${controller.episode.id}');
+        debugPrint('Progress restored: ${saved}s for ${controller.episode.id}');
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Progress restore error: $e');
@@ -411,14 +410,18 @@ body { width:100vw; height:100vh; overflow:hidden; }
     _endedHandled = false;
     _lastKnownSpeed = 1.0;
 
-    // ✅ MP4 takes priority over HLS when available
-    final isMp4 = controller.episode.usesMp4;
-    final videoUrl = isMp4
-        ? controller.episode.mp4Url
-        : controller.streamUrl.value;
+    // ✅ Get signed URL — falls back to raw URL automatically if signing fails
+    final videoUrl = await controller.resolveStreamUrl();
+    if (videoUrl.isEmpty) {
+      _hlsLoading.value = false;
+      await _handlePlayerError();
+      return;
+    }
 
     try {
-      final newController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+      final newController = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+      );
 
       await newController.initialize();
       if (!mounted) {
@@ -860,19 +863,26 @@ class _ThumbnailPlayer extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Obx(() => Text(
-                          controller.errorMessage.value.isNotEmpty
-                              ? controller.errorMessage.value
-                              : 'Tap to retry',
-                          style: const TextStyle(color: Colors.white70, fontSize: 13),
-                          textAlign: TextAlign.center,
-                        )),
+                        Obx(
+                          () => Text(
+                            controller.errorMessage.value.isNotEmpty
+                                ? controller.errorMessage.value
+                                : 'Tap to retry',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ],
                     )
-                  : _AnimatedPlayButton(onTap: () {
-                      HapticFeedback.heavyImpact();
-                      onPlayTapped();
-                    }),
+                  : _AnimatedPlayButton(
+                      onTap: () {
+                        HapticFeedback.heavyImpact();
+                        onPlayTapped();
+                      },
+                    ),
             ),
           ),
           Positioned(
@@ -895,8 +905,6 @@ class _ThumbnailPlayer extends StatelessWidget {
     );
   }
 }
-
-
 
 class _DownloadSection extends StatelessWidget {
   final VideoController controller;
@@ -923,8 +931,9 @@ class _DownloadSection extends StatelessWidget {
   }
 
   Future<void> _navigateToOfflinePlayer(dynamic episode) async {
-    final playbackPath =
-        await DownloadService.instance.getPlaybackPath(episode.episodeId);
+    final playbackPath = await DownloadService.instance.getPlaybackPath(
+      episode.episodeId,
+    );
 
     if (playbackPath == null) {
       AppSnackbar.error(
@@ -935,10 +944,7 @@ class _DownloadSection extends StatelessWidget {
     }
 
     Get.to(
-      () => OfflinePlayerScreen(
-        episode: episode,
-        filePath: playbackPath,
-      ),
+      () => OfflinePlayerScreen(episode: episode, filePath: playbackPath),
       transition: Transition.downToUp,
     );
   }
@@ -948,56 +954,59 @@ class _DownloadSection extends StatelessWidget {
     // ✅ YouTube episodes — Snaptube download flow (completely untouched)
     if (!controller.isCustomPlayer.value) {
       if (controller.episode.videoId.isEmpty) return const SizedBox.shrink();
-      return Obx(() => Container(
-            decoration: BoxDecoration(
-              color: AppColors.secondaryDark,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-            ),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Download Episode', style: AppTypography.title),
-                const SizedBox(height: AppSpacing.md),
-                ElevatedButton.icon(
-                  onPressed: controller.isDownloadLoading.value
-                      ? null
-                      : controller.goToYoutubeDownload,
-                  icon: controller.isDownloadLoading.value
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white70,
-                            ),
+      return Obx(
+        () => Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondaryDark,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+          ),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Download Episode', style: AppTypography.title),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: controller.isDownloadLoading.value
+                    ? null
+                    : controller.goToYoutubeDownload,
+                icon: controller.isDownloadLoading.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white70,
                           ),
-                        )
-                      : const Icon(Icons.download_rounded),
-                  label: Text(
-                    controller.isDownloadLoading.value
-                        ? 'Loading...'
-                        : 'Free Download',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.lg,
-                      // ✅ FIX — horizontal padding added so text is not cramped
-                      horizontal: AppSpacing.lg,
-                    ),
+                        ),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(
+                  controller.isDownloadLoading.value
+                      ? 'Loading...'
+                      : 'Free Download',
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.lg,
+                    // ✅ FIX — horizontal padding added so text is not cramped
+                    horizontal: AppSpacing.lg,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Download opens in external app.',
-                  style: AppTypography.caption
-                      .copyWith(color: AppColors.softGrey),
-                  textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Download opens in external app.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.softGrey,
                 ),
-              ],
-            ),
-          ));
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     // ✅ Custom player episodes — MP4 in-app download
@@ -1031,10 +1040,10 @@ class _DownloadSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: progress,
-                  backgroundColor:
-                      AppColors.softGrey.withValues(alpha: 0.2),
+                  backgroundColor: AppColors.softGrey.withValues(alpha: 0.2),
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryRed),
+                    AppColors.primaryRed,
+                  ),
                   minHeight: 6,
                 ),
               ),
@@ -1047,14 +1056,16 @@ class _DownloadSection extends StatelessWidget {
                     isPaused
                         ? 'Paused — ${(progress * 100).toStringAsFixed(0)}%'
                         : 'Downloading — ${(progress * 100).toStringAsFixed(0)}%',
-                    style: AppTypography.caption
-                        .copyWith(color: AppColors.softGrey),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.softGrey,
+                    ),
                   ),
                   if (activeDownload?.mbProgressText.isNotEmpty == true)
                     Text(
                       activeDownload!.mbProgressText,
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.softGrey),
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.softGrey,
+                      ),
                     ),
                 ],
               ),
@@ -1070,9 +1081,11 @@ class _DownloadSection extends StatelessWidget {
                           downloadService.pauseDownload(episodeId);
                         }
                       },
-                      icon: Icon(isPaused
-                          ? Icons.play_arrow_rounded
-                          : Icons.pause_rounded),
+                      icon: Icon(
+                        isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
+                      ),
                       label: Text(isPaused ? 'Resume' : 'Pause'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
@@ -1085,8 +1098,7 @@ class _DownloadSection extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.md),
                   ElevatedButton.icon(
-                    onPressed: () =>
-                        downloadService.cancelDownload(episodeId),
+                    onPressed: () => downloadService.cancelDownload(episodeId),
                     icon: const Icon(Icons.cancel_rounded),
                     label: const Text('Cancel'),
                     style: ElevatedButton.styleFrom(
@@ -1111,8 +1123,7 @@ class _DownloadSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Queued — waiting for current download to finish',
-                      style: AppTypography.caption
-                          .copyWith(color: Colors.grey),
+                      style: AppTypography.caption.copyWith(color: Colors.grey),
                     ),
                   ),
                 ],
@@ -1134,17 +1145,20 @@ class _DownloadSection extends StatelessWidget {
 
             if (isDownloaded && !isDownloading)
               ElevatedButton.icon(
-                onPressed: () => _playOffline(context, episodeId, downloadService),
-                icon: const Icon(Icons.play_circle_rounded,
-                    color: AppColors.goldAccent),
+                onPressed: () =>
+                    _playOffline(context, episodeId, downloadService),
+                icon: const Icon(
+                  Icons.play_circle_rounded,
+                  color: AppColors.goldAccent,
+                ),
                 label: Text(
                   'Play Offline',
-                  style: AppTypography.button
-                      .copyWith(color: AppColors.goldAccent),
+                  style: AppTypography.button.copyWith(
+                    color: AppColors.goldAccent,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      AppColors.goldAccent.withValues(alpha: 0.15),
+                  backgroundColor: AppColors.goldAccent.withValues(alpha: 0.15),
                   padding: const EdgeInsets.symmetric(
                     vertical: AppSpacing.lg,
                     horizontal: AppSpacing.lg,
@@ -1153,34 +1167,37 @@ class _DownloadSection extends StatelessWidget {
               ),
 
             if (!isDownloaded && !isDownloading)
-              Obx(() => ElevatedButton.icon(
-                    onPressed: controller.isDownloadLoading.value
-                        ? null
-                        : controller.goToDownload,
-                    icon: controller.isDownloadLoading.value
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white70),
+              Obx(
+                () => ElevatedButton.icon(
+                  onPressed: controller.isDownloadLoading.value
+                      ? null
+                      : controller.goToDownload,
+                  icon: controller.isDownloadLoading.value
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white70,
                             ),
-                          )
-                        : const Icon(Icons.download_rounded),
-                    label: Text(
-                      controller.isDownloadLoading.value
-                          ? 'Loading...'
-                          : 'Download for Offline',
+                          ),
+                        )
+                      : const Icon(Icons.download_rounded),
+                  label: Text(
+                    controller.isDownloadLoading.value
+                        ? 'Loading...'
+                        : 'Download for Offline',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.lg,
+                      // ✅ FIX — horizontal padding
+                      horizontal: AppSpacing.lg,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.lg,
-                        // ✅ FIX — horizontal padding
-                        horizontal: AppSpacing.lg,
-                      ),
-                    ),
-                  )),
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -1274,8 +1291,6 @@ class _VastAdOverlay extends StatelessWidget {
     );
   }
 }
-
-
 
 // ─────────────────────────────────────────────────────────────────
 // EPISODE LIST SECTION
@@ -1715,6 +1730,7 @@ class _SimilarDramasSection extends StatelessWidget {
     );
   }
 }
+
 class _AnimatedPlayButton extends StatefulWidget {
   final VoidCallback onTap;
   const _AnimatedPlayButton({required this.onTap});

@@ -13,11 +13,14 @@ class AppConfigModel {
   final String cdnBase;
   final String instagramUrl;
   final String websiteUrl;
-  // ── Telegram Bot (for Suggest Drama & Report Problem submissions) ──
   final String telegramBotToken;
   final String telegramChatId;
-  // ✅ ADDED — Fallback update options
   final FallbackUpdateConfig fallbackUpdate;
+
+  // ── Signing API (for secure video URL signing via Deno Deploy) ──
+  final String signingApi;
+  final String signingApiFallback;
+  final bool useSignedUrls;
 
   AppConfigModel({
     required this.appName,
@@ -35,8 +38,10 @@ class AppConfigModel {
     required this.websiteUrl,
     required this.telegramBotToken,
     required this.telegramChatId,
-    // ✅ ADDED
     required this.fallbackUpdate,
+    required this.signingApi,
+    required this.signingApiFallback,
+    required this.useSignedUrls,
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -68,10 +73,14 @@ class AppConfigModel {
       websiteUrl: json['website_url'] ?? 'https://dramahubs.stream/',
       telegramBotToken: json['telegram_bot_token'] ?? '',
       telegramChatId: json['telegram_chat_id'] ?? '',
-      // ✅ ADDED — safe fallback if key missing in old config
       fallbackUpdate: FallbackUpdateConfig.fromJson(
         json['fallback_update'] as Map<String, dynamic>? ?? {},
       ),
+      // ── Signing API — safe defaults if missing from old config ──
+      signingApi: (json['signing_api'] as String?)?.trim() ?? '',
+      signingApiFallback:
+          (json['signing_api_fallback'] as String?)?.trim() ?? '',
+      useSignedUrls: json['use_signed_urls'] ?? false,
     );
   }
 
@@ -92,15 +101,15 @@ class AppConfigModel {
       websiteUrl: 'https://dramahubs.stream/',
       telegramBotToken: '',
       telegramChatId: '',
-      // ✅ ADDED — defaults to both options hidden
       fallbackUpdate: FallbackUpdateConfig.defaults(),
+      signingApi: '',
+      signingApiFallback: '',
+      useSignedUrls: false,
     );
   }
 }
 
 /// Fallback update delivery config — controlled remotely via admin panel
-/// playstore_enabled defaults to true — safe by default
-/// telegram and website default to false — hidden until admin enables
 class FallbackUpdateConfig {
   final bool playstoreEnabled;
   final String playstoreUrl;
@@ -118,19 +127,17 @@ class FallbackUpdateConfig {
     required this.websiteUrl,
   });
 
-  /// Safety check — at least one option must always be enabled
-  /// Prevents empty update dialog that locks users out permanently
   bool get hasAtLeastOneOption =>
       playstoreEnabled || telegramEnabled || websiteEnabled;
 
   factory FallbackUpdateConfig.fromJson(Map<String, dynamic> json) {
     return FallbackUpdateConfig(
       playstoreEnabled: json['playstore_enabled'] ?? true,
-      playstoreUrl: json['playstore_url'] ??
+      playstoreUrl:
+          json['playstore_url'] ??
           'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
       telegramEnabled: json['telegram_enabled'] ?? false,
-      telegramUrl:
-          json['telegram_url'] ?? 'https://t.me/araftahindisub',
+      telegramUrl: json['telegram_url'] ?? 'https://t.me/araftahindisub',
       websiteEnabled: json['website_enabled'] ?? false,
       websiteUrl:
           json['website_url'] ?? 'https://dramahubs.stream/p/app-download.html',

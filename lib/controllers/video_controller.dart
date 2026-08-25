@@ -4,6 +4,7 @@ import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/services/download_service.dart';
 import 'package:drama_hub/services/video_service.dart';
+import 'package:drama_hub/services/signing_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
 import 'package:drama_hub/models/drama_model.dart';
@@ -17,26 +18,18 @@ class VideoController extends GetxController {
 
   late EpisodeModel episode;
 
-  // ✅ Drama info passed from EpisodesController for display in video screen
   String dramaTitle = '';
   String dramaBanner = '';
 
-  // WebView loading state
   final RxBool isVideoLoading = true.obs;
-
-  // Player initialized state
-  // false = show thumbnail + play button
-  // true  = show WebView player
   final RxBool isPlayerInitialized = false.obs;
   final RxBool hasVideoError = false.obs;
   final RxString errorMessage = ''.obs;
   final RxBool isCustomPlayer = false.obs;
   final RxString streamUrl = ''.obs;
-
-  // Download navigation loading state
   final RxBool isDownloadLoading = false.obs;
 
-  // ── New fields for video screen UI sections ──
+  // ── Extra data for video screen UI ──
   DramaModel? drama;
   List<EpisodeModel> allEpisodes = [];
   EpisodeModel? nextEpisode;
@@ -53,10 +46,7 @@ class VideoController extends GetxController {
     if (args is EpisodeModel) {
       episode = args;
       isCustomPlayer.value = episode.isCustomPlayer;
-      // ✅ MP4 takes priority over HLS
-      streamUrl.value = episode.usesMp4 
-          ? episode.mp4Url 
-          : episode.streamUrl;
+      streamUrl.value = episode.usesMp4 ? episode.mp4Url : episode.streamUrl;
       dramaTitle = '';
       dramaBanner = '';
     } else if (args is Map) {
@@ -67,10 +57,7 @@ class VideoController extends GetxController {
       }
       episode = ep;
       isCustomPlayer.value = episode.isCustomPlayer;
-      // ✅ MP4 takes priority over HLS
-      streamUrl.value = episode.usesMp4 
-          ? episode.mp4Url 
-          : episode.streamUrl;
+      streamUrl.value = episode.usesMp4 ? episode.mp4Url : episode.streamUrl;
       dramaTitle = args['dramaTitle'] ?? '';
       dramaBanner = args['dramaBanner'] ?? '';
     } else {
@@ -87,20 +74,36 @@ class VideoController extends GetxController {
     super.onClose();
   }
 
+  /// Resolves signed stream URL — called by video_screen before player init.
+  /// Returns signed URL if signing enabled, raw URL as fallback.
+  Future<String> resolveStreamUrl() async {
+    final rawUrl = episode.usesMp4 ? episode.mp4Url : episode.streamUrl;
+    if (kDebugMode)
+      debugPrint(
+        'resolveStreamUrl: dramaId=${episode.dramaId} ep=${episode.episodeNumber} mp4Url=${episode.mp4Url} streamUrl=${episode.streamUrl} usesMp4=${episode.usesMp4}',
+      );
+    if (rawUrl.isEmpty) return rawUrl;
+
+    if (!episode.isCustomPlayer) return rawUrl;
+
+    return SigningService.instance.getStreamUrl(
+      dramaId: episode.dramaId,
+      episodeNumber: episode.episodeNumber,
+      rawUrl: rawUrl,
+    );
+  }
+
   void _loadExtraData() {
-    // Load all episodes and drama from EpisodesController if available
     try {
       final episodesCtrl = Get.find<EpisodesController>();
       allEpisodes = List<EpisodeModel>.from(episodesCtrl.allEpisodes)
         ..sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
       drama = episodesCtrl.selectedDrama;
     } catch (_) {
-      // EpisodesController not available — user came from history/home
       allEpisodes = [];
       drama = null;
     }
 
-    // Find next episode
     if (allEpisodes.isNotEmpty) {
       final currentIndex = allEpisodes.indexWhere(
         (e) => e.episodeNumber == episode.episodeNumber,
@@ -111,13 +114,11 @@ class VideoController extends GetxController {
       }
     }
 
-    // Load similar dramas from HomeController
     try {
       final homeCtrl = Get.find<HomeController>();
       final allDramas = homeCtrl.allDramas;
       final currentGenre = drama?.genre ?? '';
 
-      // Same genre first, excluding current drama
       final sameGenre = allDramas
           .where(
             (d) =>
@@ -127,7 +128,6 @@ class VideoController extends GetxController {
           )
           .toList();
 
-      // Fill remaining with other dramas if needed
       final others = allDramas
           .where(
             (d) =>
@@ -146,7 +146,6 @@ class VideoController extends GetxController {
   Future<void> goToNextEpisode() async {
     if (nextEpisode == null) return;
     final next = nextEpisode!;
-
     await _adService.showRewardedForScreen(
       'episodes_screen',
       onRewarded: () => _navigateToEpisode(next),
@@ -165,7 +164,7 @@ class VideoController extends GetxController {
     );
   }
 
-  /// Starts download directly — no screen redirect
+  /// Starts download with signed URL
   Future<void> goToDownload() async {
     if (isDownloadLoading.value) return;
 
@@ -180,12 +179,19 @@ class VideoController extends GetxController {
     try {
       isDownloadLoading.value = true;
 
+      // Get signed download URL before starting
+      final signedUrl = await SigningService.instance.getDownloadUrl(
+        dramaId: episode.dramaId,
+        episodeNumber: episode.episodeNumber,
+        rawUrl: episode.mp4Url,
+      );
+
       await _adService.showRewardedForDownload(
         onRewarded: () async {
           final success = await DownloadService.instance.startDownload(
             episode: episode,
             dramaTitle: dramaTitle,
-            mp4Url: episode.mp4Url,
+            mp4Url: signedUrl,
           );
           if (!success) {
             AppSnackbar.error(
@@ -198,7 +204,7 @@ class VideoController extends GetxController {
           await DownloadService.instance.startDownload(
             episode: episode,
             dramaTitle: dramaTitle,
-            mp4Url: episode.mp4Url,
+            mp4Url: signedUrl,
           );
         },
       );
@@ -209,7 +215,7 @@ class VideoController extends GetxController {
     }
   }
 
-  /// Navigates to download screen for YouTube episodes (Snaptube flow)
+  /// Navigates to download screen for YouTube episodes
   Future<void> goToYoutubeDownload() async {
     if (isDownloadLoading.value) return;
 

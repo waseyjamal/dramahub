@@ -27,8 +27,8 @@ class DataService {
 
   static const String _localDramasFallback = 'assets/data/dramas.json';
 
-  // 6 hours — safe because data_version bump clears cache instantly anyway
-  static const Duration _episodeCacheTTL = Duration(hours: 6);
+  // 5 minutes — safe because data_version bump clears cache instantly anyway
+  static const Duration _episodeCacheTTL = Duration(minutes: 5);
 
   // ── Dramas ──────────────────────────────────────────────────────────────
 
@@ -41,11 +41,15 @@ class DataService {
       if (response.statusCode == 200) {
         return compute(_parseDramas, response.body);
       } else {
-        if (kDebugMode) { debugPrint('Failed to load remote dramas: ${response.statusCode}'); }
+        if (kDebugMode) {
+          debugPrint('Failed to load remote dramas: ${response.statusCode}');
+        }
         return _loadLocalDramas();
       }
     } catch (e) {
-      if (kDebugMode) { debugPrint('Error fetching dramas: $e'); }
+      if (kDebugMode) {
+        debugPrint('Error fetching dramas: $e');
+      }
       return _loadLocalDramas();
     }
   }
@@ -57,7 +61,9 @@ class DataService {
       );
       return compute(_parseDramas, jsonString);
     } catch (e) {
-      if (kDebugMode) { debugPrint('Error loading local dramas: $e'); }
+      if (kDebugMode) {
+        debugPrint('Error loading local dramas: $e');
+      }
       return [];
     }
   }
@@ -83,13 +89,17 @@ class DataService {
         await _cacheEpisodes(dramaId, response.body);
         return episodes;
       } else {
-        if (kDebugMode) { debugPrint(
-          'Failed to load remote episodes for $dramaId: ${response.statusCode}',
-        ); }
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to load remote episodes for $dramaId: ${response.statusCode}',
+          );
+        }
         return _loadLocalEpisodes(dramaId);
       }
     } catch (e) {
-      if (kDebugMode) { debugPrint('Error loading remote episodes for $dramaId: $e'); }
+      if (kDebugMode) {
+        debugPrint('Error loading remote episodes for $dramaId: $e');
+      }
       return _loadLocalEpisodes(dramaId);
     }
   }
@@ -103,9 +113,11 @@ class DataService {
       final savedVersion = prefs.getInt(StorageKeys.dataVersion) ?? 0;
 
       if (newVersion != savedVersion && newVersion > 0) {
-        if (kDebugMode) { debugPrint(
-          'DataService: data_version $savedVersion → $newVersion — clearing episode caches',
-        ); }
+        if (kDebugMode) {
+          debugPrint(
+            'DataService: data_version $savedVersion → $newVersion — clearing episode caches',
+          );
+        }
         final keys = prefs.getKeys().toList();
         for (final key in keys) {
           if (key.startsWith(StorageKeys.episodesCache) ||
@@ -116,7 +128,9 @@ class DataService {
         await prefs.setInt(StorageKeys.dataVersion, newVersion);
       }
     } catch (e) {
-      if (kDebugMode) { debugPrint('DataService: version check error — $e'); }
+      if (kDebugMode) {
+        debugPrint('DataService: version check error — $e');
+      }
     }
   }
 
@@ -148,7 +162,9 @@ class DataService {
         DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      if (kDebugMode) { debugPrint('Episode cache write error: $e'); }
+      if (kDebugMode) {
+        debugPrint('Episode cache write error: $e');
+      }
     }
   }
 
@@ -159,7 +175,9 @@ class DataService {
       );
       return compute(_parseEpisodes, jsonString);
     } catch (e) {
-      if (kDebugMode) { debugPrint('Error loading local episodes for $dramaId: $e'); }
+      if (kDebugMode) {
+        debugPrint('Error loading local episodes for $dramaId: $e');
+      }
       try {
         final String jsonString = await rootBundle.loadString(
           'assets/data/episodes.json',
@@ -167,7 +185,9 @@ class DataService {
         final allEpisodes = await compute(_parseEpisodes, jsonString);
         return allEpisodes.where((ep) => ep.dramaId == dramaId).toList();
       } catch (e2) {
-        if (kDebugMode) { debugPrint('Error loading legacy local episodes: $e2'); }
+        if (kDebugMode) {
+          debugPrint('Error loading legacy local episodes: $e2');
+        }
         return [];
       }
     }
