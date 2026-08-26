@@ -7,7 +7,6 @@ import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
-import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 
 /// Horizontal row showing the most recently added dramas to Drama Hub.
@@ -48,32 +47,32 @@ class NewDramasRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      '🆕 New Dramas',
+                      'New Dramas',
                       style: AppTypography.title.copyWith(fontSize: 18),
                     ),
                   ],
                 ),
                 GestureDetector(
                   onTap: () => Get.toNamed(AppRoutes.newDramas),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: AppColors.primaryRed.withValues(alpha: 0.5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          color: AppColors.softGrey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Inter',
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Text(
-                      'View All',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.primaryRed,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.softGrey,
+                        size: 16,
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],

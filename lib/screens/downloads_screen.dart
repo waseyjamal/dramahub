@@ -9,6 +9,7 @@ import 'package:drama_hub/models/download_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
 import 'package:drama_hub/services/download_service.dart';
+import 'package:drama_hub/services/video_service.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
@@ -551,6 +552,7 @@ class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    VideoService.instance.enableSecureMode().catchError((_) {});
     _initPlayer();
   }
 
@@ -583,6 +585,7 @@ class _OfflinePlayerScreenState extends State<OfflinePlayerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    VideoService.instance.disableSecureMode().catchError((_) {});
     _playerController?.pause();
     _playerController?.dispose();
     // ✅ Clean up temp fallback file for this episode only

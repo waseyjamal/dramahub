@@ -188,10 +188,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                               color: AppColors.white,
                               height: 1.1,
                               shadows: [
-                                Shadow(
-                                  color: Colors.black,
-                                  blurRadius: 10,
-                                ),
+                                Shadow(color: Colors.black, blurRadius: 10),
                               ],
                             ),
                           ),
@@ -212,10 +209,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF2A0808),
-                      Color(0xFF150404),
-                    ],
+                    colors: [Color(0xFF2A0808), Color(0xFF150404)],
                   ),
                   borderRadius: BorderRadius.circular(AppRadius.large),
                 ),
@@ -233,7 +227,6 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     Obx(
                       () => Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _TimeUnit(
                             value: controller.days.value,
@@ -322,19 +315,21 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                           HapticFeedback.lightImpact();
                           if (!AppUrls.isSafeUrl(AppUrls.telegram)) return;
                           final url = Uri.parse(AppUrls.telegram);
-                          canLaunchUrl(url).then((can) {
-                            if (can) {
-                              launchUrl(
-                                url,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            }
-                          });
+                          canLaunchUrl(url)
+                              .then((can) {
+                                if (can) {
+                                  launchUrl(
+                                    url,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                }
+                              })
+                              .catchError((_) {});
                         },
                         icon: const Icon(Icons.send_rounded, size: 18),
                         label: const Text('Join Telegram Channel'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0088CC),
+                          backgroundColor: AppColors.primaryRed,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.md,
@@ -392,22 +387,18 @@ class _TimeUnit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 64,
+    return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 64,
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF3A0A0A),
-                  Color(0xFF1C0505),
-                ],
+                colors: [Color(0xFF3A0A0A), Color(0xFF1C0505)],
               ),
               borderRadius: BorderRadius.circular(AppRadius.medium),
               border: Border.all(

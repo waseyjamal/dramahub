@@ -23,16 +23,30 @@ class YandexService extends GetxService {
   // ── Internal state ───────────────────────────────────────────────
   bool _initialized = false;
 
+  // ── Ad expiry tracking ───────────────────────────────────────────
+  static const Duration _adMaxAge = Duration(minutes: 55);
+
   InterstitialAd? _interstitialAd;
   bool _interstitialReady = false;
   bool _interstitialShowing = false;
+  DateTime? _interstitialLoadedAt;
+  int _interstitialRetryAttempt = 0;
+  Timer? _interstitialRetryTimer;
 
   RewardedAd? _rewardedAd;
   bool _rewardedReady = false;
   bool _rewardedShowing = false;
+  DateTime? _rewardedLoadedAt;
+  int _rewardedRetryAttempt = 0;
+  Timer? _rewardedRetryTimer;
 
   AppOpenAd? _appOpenAd;
   bool _appOpenReady = false;
+  int _appOpenRetryAttempt = 0;
+  Timer? _appOpenRetryTimer;
+
+  static const List<int> _retryBackoffSeconds = [10, 30, 60, 120];
+
   bool _appOpenShowing = false;
   bool _pendingAppOpenShow = false;
   bool _hasShownThisSession = false;
@@ -66,6 +80,7 @@ class YandexService extends GetxService {
   // ── Load Interstitial ────────────────────────────────────────────
   void _loadInterstitial() {
     if (!_initialized) return;
+    _interstitialRetryTimer?.cancel();
     try {
       final loader = InterstitialAdLoader();
       loader.loadAd(
@@ -77,20 +92,36 @@ class YandexService extends GetxService {
       ).then((ad) {
         _interstitialAd = ad;
         _interstitialReady = true;
+        _interstitialLoadedAt = DateTime.now();
+        _interstitialRetryAttempt = 0;
         if (kDebugMode) debugPrint('✅ Yandex Interstitial loaded');
       }).catchError((e) {
         _interstitialReady = false;
+        _scheduleInterstitialRetry();
         if (kDebugMode) debugPrint('❌ Yandex Interstitial load failed: $e');
       });
     } catch (e) {
       _interstitialReady = false;
+      _scheduleInterstitialRetry();
       if (kDebugMode) debugPrint('❌ Yandex Interstitial load error: $e');
+    }
+  }
+
+  void _scheduleInterstitialRetry() {
+    final delay = _retryBackoffSeconds[
+        _interstitialRetryAttempt.clamp(0, _retryBackoffSeconds.length - 1)];
+    _interstitialRetryAttempt++;
+    _interstitialRetryTimer =
+        Timer(Duration(seconds: delay), _loadInterstitial);
+    if (kDebugMode) {
+      debugPrint('🔄 Interstitial retry in ${delay}s (attempt $_interstitialRetryAttempt)');
     }
   }
 
   // ── Load Rewarded ────────────────────────────────────────────────
   void _loadRewarded() {
     if (!_initialized) return;
+    _rewardedRetryTimer?.cancel();
     try {
       final loader = RewardedAdLoader();
       loader.loadAd(
@@ -102,14 +133,28 @@ class YandexService extends GetxService {
       ).then((ad) {
         _rewardedAd = ad;
         _rewardedReady = true;
+        _rewardedLoadedAt = DateTime.now();
+        _rewardedRetryAttempt = 0;
         if (kDebugMode) debugPrint('✅ Yandex Rewarded loaded');
       }).catchError((e) {
         _rewardedReady = false;
+        _scheduleRewardedRetry();
         if (kDebugMode) debugPrint('❌ Yandex Rewarded load failed: $e');
       });
     } catch (e) {
       _rewardedReady = false;
+      _scheduleRewardedRetry();
       if (kDebugMode) debugPrint('❌ Yandex Rewarded load error: $e');
+    }
+  }
+
+  void _scheduleRewardedRetry() {
+    final delay = _retryBackoffSeconds[
+        _rewardedRetryAttempt.clamp(0, _retryBackoffSeconds.length - 1)];
+    _rewardedRetryAttempt++;
+    _rewardedRetryTimer = Timer(Duration(seconds: delay), _loadRewarded);
+    if (kDebugMode) {
+      debugPrint('🔄 Rewarded retry in ${delay}s (attempt $_rewardedRetryAttempt)');
     }
   }
 
@@ -135,11 +180,23 @@ class YandexService extends GetxService {
       }).catchError((e) {
         _appOpenReady = false;
         _pendingAppOpenShow = false;
+        _scheduleAppOpenRetry();
         if (kDebugMode) debugPrint('❌ Yandex App Open load failed: $e');
       });
     } catch (e) {
       _appOpenReady = false;
+      _scheduleAppOpenRetry();
       if (kDebugMode) debugPrint('❌ Yandex App Open load error: $e');
+    }
+  }
+
+  void _scheduleAppOpenRetry() {
+    final delay = _retryBackoffSeconds[
+        _appOpenRetryAttempt.clamp(0, _retryBackoffSeconds.length - 1)];
+    _appOpenRetryAttempt++;
+    _appOpenRetryTimer = Timer(Duration(seconds: delay), _loadAppOpen);
+    if (kDebugMode) {
+      debugPrint('🔄 AppOpen retry in ${delay}s (attempt $_appOpenRetryAttempt)');
     }
   }
 
@@ -147,6 +204,16 @@ class YandexService extends GetxService {
   Future<bool> showInterstitialFallback() async {
     if (!_initialized) return false;
     if (_interstitialShowing) return false;
+    // ── Expiry check — refresh stale ad before show-time failure ────
+    if (_interstitialReady && _interstitialLoadedAt != null) {
+      if (DateTime.now().difference(_interstitialLoadedAt!) > _adMaxAge) {
+        if (kDebugMode) debugPrint('⚠️ Interstitial expired — reloading');
+        _interstitialReady = false;
+        _interstitialAd?.destroy();
+        _interstitialAd = null;
+        _loadInterstitial();
+      }
+    }
     if (!_interstitialReady || _interstitialAd == null) {
       if (kDebugMode) debugPrint('ℹ️ Yandex Interstitial not ready');
       return false;
@@ -207,6 +274,16 @@ class YandexService extends GetxService {
     }
     if (_rewardedShowing) {
       return true;
+    }
+    // ── Expiry check ─────────────────────────────────────────────────
+    if (_rewardedReady && _rewardedLoadedAt != null) {
+      if (DateTime.now().difference(_rewardedLoadedAt!) > _adMaxAge) {
+        if (kDebugMode) debugPrint('⚠️ Rewarded expired — reloading');
+        _rewardedReady = false;
+        _rewardedAd?.destroy();
+        _rewardedAd = null;
+        _loadRewarded();
+      }
     }
     if (!_rewardedReady || _rewardedAd == null) {
       if (kDebugMode) debugPrint('ℹ️ Yandex Rewarded not ready');
@@ -396,6 +473,9 @@ class YandexService extends GetxService {
 
   @override
   void onClose() {
+    _interstitialRetryTimer?.cancel();
+    _rewardedRetryTimer?.cancel();
+    _appOpenRetryTimer?.cancel();
     _interstitialAd?.destroy();
     _rewardedAd?.destroy();
     _appOpenAd?.destroy();

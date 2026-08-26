@@ -180,6 +180,11 @@ class HomeController extends GetxController {
     }
   }
 
+  List<DramaModel> getDramasByCategory(String category) {
+    if (category == 'all') return allDramas;
+    return allDramas.where((d) => d.category == category).toList();
+  }
+
   /// Splits dramas into categories and builds all reactive lists.
   /// Called from both cache-hit and fresh-fetch paths.
   /// Zero network requests — everything built from drama data.

@@ -45,4 +45,5 @@ class AppRoutes {
   static const String downloads = '/downloads';
   static const String latestEpisodes = '/latest-episodes';
   static const String newDramas = '/new-dramas';
+  static const String category = '/category';
 }

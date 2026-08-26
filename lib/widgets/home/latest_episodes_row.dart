@@ -33,31 +33,48 @@ class LatestEpisodesRow extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '🆕 Latest Episodes',
-                  style: AppTypography.title.copyWith(fontSize: 18),
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [AppColors.primaryRed, AppColors.goldAccent],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Latest Episodes',
+                      style: AppTypography.title.copyWith(fontSize: 18),
+                    ),
+                  ],
                 ),
                 GestureDetector(
                   onTap: () => Get.toNamed(AppRoutes.latestEpisodes),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: AppColors.primaryRed.withValues(alpha: 0.5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          color: AppColors.softGrey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Inter',
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Text(
-                      'View All',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.primaryRed,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.softGrey,
+                        size: 16,
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],

@@ -42,33 +42,15 @@
 #-dontwarn com.appodeal.**
 #-dontwarn com.explorestack.**
 
-# Unity Ads (used by LevelPlay)
--keep class com.unity3d.ads.** { *; }
--keep class com.unity3d.services.** { *; }
--dontwarn com.unity3d.ads.**
--dontwarn com.unity3d.services.**
-
-# Vungle/Liftoff (used by LevelPlay)
--keep class com.vungle.** { *; }
--dontwarn com.vungle.**
-
-# ExoPlayer (used by video_player package)
--keep class com.google.android.exoplayer2.** { *; }
--keep interface com.google.android.exoplayer2.** { *; }
--keep class com.google.android.exoplayer2.ext.** { *; }
--dontwarn com.google.android.exoplayer2.**
+# Media3 (used by video_player package — replaces legacy ExoPlayer2)
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
 
 # OkHttp / Network
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
-
-# Meta Audience Network (Facebook Ads)
--dontwarn com.facebook.infer.annotation.**
--keep class com.facebook.infer.annotation.** { *; }
--dontwarn com.facebook.ads.**
--keep class com.facebook.ads.** { *; }
 
 # CAS (Clever Ads Solutions) — DISABLED
 #-dontwarn com.cleveradssolutions.**
@@ -94,14 +76,6 @@
 -dontwarn sg.bigo.ads.**
 -keep class sg.bigo.ads.** { *; }
 
-# Ogury
--dontwarn io.ogury.**
--keep class io.ogury.** { *; }
-
-# Smaato
--dontwarn com.smaato.**
--keep class com.smaato.** { *; }
-
 # StartIO
 -dontwarn com.startapp.**
 -keep class com.startapp.** { *; }
@@ -114,10 +88,6 @@
 -dontwarn com.fyber.**
 -keep class com.fyber.** { *; }
 
-# Verve
--dontwarn net.pubnative.**
--keep class net.pubnative.** { *; }
-
 # volume_controller
 -keep class com.androidquery.** { *; }
 -dontwarn com.androidquery.**
@@ -125,10 +95,6 @@
 # screen_brightness
 -keep class com.aaassseee.screenbrightness.** { *; }
 -dontwarn com.aaassseee.screenbrightness.**
-
-# flutter_cache_manager / sqflite
--keep class com.tekartik.sqflite.** { *; }
--dontwarn com.tekartik.sqflite.**
 
 # ── Yandex Mobile Ads SDK ────────────────────────────────────────────
 -keep class com.yandex.mobile.ads.** { *; }
@@ -145,16 +111,6 @@
 # VK Ads / myTarget (Yandex ecosystem adapter)
 -keep class com.my.target.** { *; }
 -dontwarn com.my.target.**
-
-# AppNext
--dontwarn com.appnext.**
--keep class com.appnext.** { *; }
-
-# Digital Turbine (ex. AdColony)
--dontwarn com.adcolony.**
--keep class com.adcolony.** { *; }
--dontwarn com.digitalturbine.**
--keep class com.digitalturbine.** { *; }
 
 # Pangle (ByteDance)
 -dontwarn com.bytedance.**

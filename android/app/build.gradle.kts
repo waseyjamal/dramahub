@@ -42,8 +42,8 @@ android {
         applicationId = "com.dramahub.drama_hub"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.2.1"
+        versionCode = 14
+        versionName = "1.3.1"
         multiDexEnabled = true
     }
 
@@ -115,11 +115,6 @@ dependencies {
     // IronSource — demand source via Yandex mediation
     implementation("com.yandex.ads.mediation:mobileads-ironsource:9.2.0.2")
 
-    // Pangle (ByteDance) — Asian market fill
-    implementation("com.yandex.ads.mediation:mobileads-pangle:8.0.0.5.1")
-
-    // Start.io — performance fill
-    implementation("com.yandex.ads.mediation:mobileads-startapp:5.2.2.1")
 
     // Tapjoy — rewarded/offerwall fill
     implementation("com.yandex.ads.mediation:mobileads-tapjoy:14.3.1.11")

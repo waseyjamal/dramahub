@@ -386,27 +386,29 @@ class DownloadService extends GetxService {
       final rafSource = await sourceFile.open(mode: FileMode.read);
       final rafTemp = await tempFile.open(mode: FileMode.write);
 
-      final header = Uint8List(deobfuscateLen.toInt());
-      await rafSource.readInto(header);
-      for (int i = 0; i < header.length; i++) {
-        header[i] = header[i] ^ _xorKey[i % _xorKey.length];
-      }
-      await rafTemp.writeFrom(header);
+      try {
+        final header = Uint8List(deobfuscateLen.toInt());
+        await rafSource.readInto(header);
+        for (int i = 0; i < header.length; i++) {
+          header[i] = header[i] ^ _xorKey[i % _xorKey.length];
+        }
+        await rafTemp.writeFrom(header);
 
-      const chunkSize = 256 * 1024;
-      int position = deobfuscateLen.toInt();
-      while (position < contentLength) {
-        final toRead = (position + chunkSize < contentLength)
-            ? chunkSize
-            : (contentLength - position).toInt();
-        final chunk = Uint8List(toRead);
-        await rafSource.readInto(chunk);
-        await rafTemp.writeFrom(chunk);
-        position += toRead;
+        const chunkSize = 256 * 1024;
+        int position = deobfuscateLen.toInt();
+        while (position < contentLength) {
+          final toRead = (position + chunkSize < contentLength)
+              ? chunkSize
+              : (contentLength - position).toInt();
+          final chunk = Uint8List(toRead);
+          await rafSource.readInto(chunk);
+          await rafTemp.writeFrom(chunk);
+          position += toRead;
+        }
+      } finally {
+        await rafSource.close();
+        await rafTemp.close();
       }
-
-      await rafSource.close();
-      await rafTemp.close();
 
       if (kDebugMode) debugPrint('✅ Playback file ready (fallback): $tempPath');
       return tempPath;
@@ -612,29 +614,31 @@ class DownloadService extends GetxService {
       final rafSource = await sourceFile.open(mode: FileMode.read);
       final rafDest = await playbackFile.open(mode: FileMode.write);
 
-      // STEP 1 — XOR first 1 MB and write to cache
-      final header = Uint8List(deobfuscateLen.toInt());
-      await rafSource.readInto(header);
-      for (int i = 0; i < header.length; i++) {
-        header[i] = header[i] ^ _xorKey[i % _xorKey.length];
-      }
-      await rafDest.writeFrom(header);
+      try {
+        // STEP 1 — XOR first 1 MB and write to cache
+        final header = Uint8List(deobfuscateLen.toInt());
+        await rafSource.readInto(header);
+        for (int i = 0; i < header.length; i++) {
+          header[i] = header[i] ^ _xorKey[i % _xorKey.length];
+        }
+        await rafDest.writeFrom(header);
 
-      // STEP 2 — Copy remaining bytes in 256 KB chunks
-      const chunkSize = 256 * 1024;
-      int position = deobfuscateLen.toInt();
-      while (position < contentLength) {
-        final toRead = (position + chunkSize < contentLength)
-            ? chunkSize
-            : (contentLength - position).toInt();
-        final chunk = Uint8List(toRead);
-        await rafSource.readInto(chunk);
-        await rafDest.writeFrom(chunk);
-        position += toRead;
+        // STEP 2 — Copy remaining bytes in 256 KB chunks
+        const chunkSize = 256 * 1024;
+        int position = deobfuscateLen.toInt();
+        while (position < contentLength) {
+          final toRead = (position + chunkSize < contentLength)
+              ? chunkSize
+              : (contentLength - position).toInt();
+          final chunk = Uint8List(toRead);
+          await rafSource.readInto(chunk);
+          await rafDest.writeFrom(chunk);
+          position += toRead;
+        }
+      } finally {
+        await rafSource.close();
+        await rafDest.close();
       }
-
-      await rafSource.close();
-      await rafDest.close();
 
       if (kDebugMode) debugPrint('✅ Playback cache prepared: $playbackPath');
       return playbackPath;

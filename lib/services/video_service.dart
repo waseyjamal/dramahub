@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class VideoService {
+  VideoService._();
+  static final VideoService instance = VideoService._();
+  factory VideoService() => instance;
+
   static const _channel = MethodChannel('com.dramahub.drama_hub/security');
 
   bool _isSecureModeEnabled = false;

@@ -20,6 +20,7 @@ import 'package:drama_hub/screens/suggest_drama_screen.dart';
 import 'package:drama_hub/screens/downloads_screen.dart';
 import 'package:drama_hub/screens/latest_episodes_screen.dart';
 import 'package:drama_hub/screens/new_dramas_screen.dart';
+import 'package:drama_hub/screens/category_screen.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
 
 /// Application pages configuration
@@ -96,6 +97,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.newDramas,
       page: () => const NewDramasScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.category,
+      page: () => const CategoryScreen(),
     ),
   ];
 }

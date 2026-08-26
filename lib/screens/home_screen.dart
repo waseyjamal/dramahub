@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/controllers/watchlist_controller.dart';
+import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/radius.dart';
+import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/typography.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -33,7 +37,8 @@ class _HomeScreenState extends State<HomeScreen>
   final PageController _pageController = PageController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  final TextEditingController _overlaySearchController = TextEditingController();
+  final TextEditingController _overlaySearchController =
+      TextEditingController();
   final FocusNode _overlayFocusNode = FocusNode();
   Timer? _timer;
 
@@ -186,8 +191,9 @@ class _HomeScreenState extends State<HomeScreen>
                           height: 48,
                           decoration: BoxDecoration(
                             color: AppColors.secondaryDark,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.large),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.large,
+                            ),
                           ),
                           child: TextField(
                             controller: _overlaySearchController,
@@ -275,11 +281,11 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.667,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                      ),
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.667,
+                            crossAxisSpacing: AppSpacing.md,
+                            mainAxisSpacing: AppSpacing.md,
+                          ),
                       itemCount: results.length,
                       itemBuilder: (context, index) {
                         final drama = results[index];
@@ -357,6 +363,11 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: AppSpacing.xl),
 
+                  // ── Category Cards Row ────────────────────────────────────
+                  _CategoryCardsRow(controller: controller),
+
+                  const SizedBox(height: AppSpacing.xl),
+
                   // Search bar — tapping enters search mode
                   HomeSearchBar(
                     controller: controller,
@@ -368,9 +379,29 @@ class _HomeScreenState extends State<HomeScreen>
 
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Text(
-                      '🎬 All Dramas',
-                      style: AppTypography.title.copyWith(fontSize: 18),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.primaryRed,
+                                AppColors.goldAccent,
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'All Dramas',
+                          style: AppTypography.title.copyWith(fontSize: 18),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -573,6 +604,163 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       }),
+    );
+  }
+}
+
+// ── Category Cards Row ────────────────────────────────────────────────────
+class _CategoryCardsRow extends StatelessWidget {
+  final HomeController controller;
+  const _CategoryCardsRow({required this.controller});
+
+  static const _categories = [
+    {
+      'label': 'Turkish Dramas',
+      'flag': '🇹🇷',
+      'key': 'turkish',
+      'image':
+          'https://cdn.jsdelivr.net/gh/waseyjamal/dramahub-images@main/cat-turkish.webp',
+    },
+    {
+      'label': 'Korean Dramas',
+      'flag': '🇰🇷',
+      'key': 'korean',
+      'image':
+          'https://cdn.jsdelivr.net/gh/waseyjamal/dramahub-images@main/cat-korean.webp',
+    },
+    {
+      'label': 'World Series',
+      'flag': '🌍',
+      'key': 'world',
+      'image':
+          'https://cdn.jsdelivr.net/gh/waseyjamal/dramahub-images@main/cat-world.webp',
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.primaryRed, AppColors.goldAccent],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Browse by Category',
+                style: AppTypography.title.copyWith(fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final cat = _categories[index];
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Get.toNamed(
+                    AppRoutes.category,
+                    arguments: {
+                      'category': cat['key'],
+                      'label': cat['label'],
+                      'flag': cat['flag'],
+                    },
+                  );
+                },
+                child: Container(
+                  width: 200,
+                  margin: const EdgeInsets.only(right: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    boxShadow: AppShadows.cardShadow,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CachedNetworkImage(
+                            imageUrl: cat['image']!,
+                            fit: BoxFit.cover,
+                            fadeInDuration: Duration.zero,
+                            placeholder: (context, url) =>
+                                Container(color: AppColors.secondaryDark),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.secondaryDark,
+                              child: const Icon(
+                                Icons.movie_outlined,
+                                color: Colors.white24,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.large,
+                            ),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 1.5,
+                                sigmaY: 1.5,
+                              ),
+                              child: Container(
+                                color: Colors.black.withValues(alpha: 0.15),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                cat['flag']!,
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              const SizedBox(height: 0),
+                              Text(
+                                cat['label']!,
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
