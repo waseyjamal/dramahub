@@ -83,6 +83,7 @@
         </intent>
         <package android:name="org.telegram.messenger" />
         <package android:name="com.android.vending" />
+        <package android:name="com.vidswift.vidswift" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
