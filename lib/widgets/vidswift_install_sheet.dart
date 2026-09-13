@@ -47,12 +47,12 @@ class VidswiftInstallSheet extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: AppColors.primaryRed.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppRadius.medium),
                 ),
                 child: Icon(
                   Icons.download_for_offline_rounded,
-                  color: AppColors.primary,
+                  color: AppColors.primaryRed,
                   size: 28,
                 ),
               ),
@@ -148,14 +148,14 @@ class _InstructionRow extends StatelessWidget {
           width: 24,
           height: 24,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.2),
+            color: AppColors.primaryRed.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
           child: Text(
             step,
             style: AppTypography.caption.copyWith(
-              color: AppColors.primary,
+              color: AppColors.primaryRed,
               fontWeight: FontWeight.bold,
             ),
           ),
