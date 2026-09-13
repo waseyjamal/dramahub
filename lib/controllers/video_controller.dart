@@ -1,4 +1,6 @@
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -10,6 +12,7 @@ import 'package:drama_hub/utils/app_snackbar.dart';
 import 'package:drama_hub/models/drama_model.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/controllers/episodes_controller.dart';
+import 'package:drama_hub/widgets/vidswift_install_sheet.dart';
 
 /// Controller for Video screen
 class VideoController extends GetxController {
@@ -215,7 +218,8 @@ class VideoController extends GetxController {
     }
   }
 
-  /// Navigates to download screen for YouTube episodes
+  /// Shares YouTube episode URL directly to VidSwift for downloading.
+  /// Shows an install prompt if VidSwift is not installed.
   Future<void> goToYoutubeDownload() async {
     if (isDownloadLoading.value) return;
 
@@ -231,27 +235,60 @@ class VideoController extends GetxController {
       isDownloadLoading.value = true;
 
       await _adService.showRewardedForDownload(
-        onRewarded: () {
-          Get.toNamed(
-            AppRoutes.download,
-            arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
-          );
-        },
-        onNotAvailable: () {
-          Get.toNamed(
-            AppRoutes.download,
-            arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
-          );
-        },
+        onRewarded: () => _handleVidswiftShare(),
+        onNotAvailable: () => _handleVidswiftShare(),
       );
     } catch (e) {
       if (kDebugMode) debugPrint('YouTube download error: $e');
-      Get.toNamed(
-        AppRoutes.download,
-        arguments: {'episode': episode, 'watchUrl': episode.watchUrl},
-      );
+      _handleVidswiftShare();
     } finally {
       isDownloadLoading.value = false;
+    }
+  }
+
+  Future<void> _handleVidswiftShare() async {
+    final installed = await _isVidswiftInstalled();
+    if (installed) {
+      await _shareToVidswift(episode.watchUrl);
+    } else {
+      Get.bottomSheet(
+        const VidswiftInstallSheet(),
+        isScrollControlled: true,
+        ignoreSafeArea: false,
+      );
+    }
+  }
+
+  Future<bool> _isVidswiftInstalled() async {
+    try {
+      final intent = AndroidIntent(
+        action: 'action_send',
+        package: 'com.vidswift.vidswift',
+        type: 'text/plain',
+        arguments: const {'android.intent.extra.TEXT': ''},
+      );
+      return await intent.canResolveActivity() ?? false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Vidswift install check error: $e');
+      return false;
+    }
+  }
+
+  Future<void> _shareToVidswift(String url) async {
+    try {
+      final intent = AndroidIntent(
+        action: 'action_send',
+        package: 'com.vidswift.vidswift',
+        type: 'text/plain',
+        arguments: {'android.intent.extra.TEXT': url},
+      );
+      await intent.launch();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Vidswift share error: $e');
+      AppSnackbar.error(
+        'Could Not Open VidSwift',
+        'Please open VidSwift manually and paste the video link.',
+      );
     }
   }
 }
