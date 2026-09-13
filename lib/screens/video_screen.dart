@@ -65,6 +65,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
     _customPlayerControllerObs.value = null;
     WakelockPlus.disable();
     _autoSaveProgress();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -205,6 +206,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
           _webViewController = webController;
           controller.isPlayerInitialized.value = true;
         });
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       }
     } finally {
       _isInitializing = false;
