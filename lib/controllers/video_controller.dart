@@ -247,47 +247,20 @@ class VideoController extends GetxController {
   }
 
   Future<void> _handleVidswiftShare() async {
-    final installed = await _isVidswiftInstalled();
-    if (installed) {
-      await _shareToVidswift(episode.watchUrl);
-    } else {
+    try {
+      final intent = AndroidIntent(
+        action: 'action_send',
+        package: 'com.vidswift.vidswift',
+        type: 'text/plain',
+        arguments: {'android.intent.extra.TEXT': episode.watchUrl},
+      );
+      await intent.launch();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Vidswift not found: $e');
       Get.bottomSheet(
         const VidswiftInstallSheet(),
         isScrollControlled: true,
         ignoreSafeArea: false,
-      );
-    }
-  }
-
-  Future<bool> _isVidswiftInstalled() async {
-    try {
-      final intent = AndroidIntent(
-        action: 'action_send',
-        package: 'com.vidswift.vidswift',
-        type: 'text/plain',
-        arguments: const {'android.intent.extra.TEXT': ''},
-      );
-      return await intent.canResolveActivity() ?? false;
-    } catch (e) {
-      if (kDebugMode) debugPrint('Vidswift install check error: $e');
-      return false;
-    }
-  }
-
-  Future<void> _shareToVidswift(String url) async {
-    try {
-      final intent = AndroidIntent(
-        action: 'action_send',
-        package: 'com.vidswift.vidswift',
-        type: 'text/plain',
-        arguments: {'android.intent.extra.TEXT': url},
-      );
-      await intent.launch();
-    } catch (e) {
-      if (kDebugMode) debugPrint('Vidswift share error: $e');
-      AppSnackbar.error(
-        'Could Not Open VidSwift',
-        'Please open VidSwift manually and paste the video link.',
       );
     }
   }
