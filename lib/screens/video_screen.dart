@@ -196,7 +196,6 @@ body { width:100vw; height:100vh; overflow:hidden; }
                     url.startsWith('https://dramahubs.stream/')) {
                   return NavigationDecision.navigate;
                 }
-                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
                 return NavigationDecision.prevent;
               },
             ),
