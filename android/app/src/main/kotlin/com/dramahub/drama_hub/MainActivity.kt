@@ -1,5 +1,8 @@
 package com.dramahub.drama_hub
 
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -24,6 +27,48 @@ class MainActivity : FlutterActivity() {
                 "disableSecureMode" -> {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // ── VidSwift channel ──
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.dramahub.drama_hub/vidswift"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isInstalled" -> {
+                    val installed = try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            packageManager.getPackageInfo(
+                                "com.vidswift.vidswift",
+                                PackageManager.PackageInfoFlags.of(0)
+                            )
+                        } else {
+                            @Suppress("DEPRECATION")
+                            packageManager.getPackageInfo("com.vidswift.vidswift", 0)
+                        }
+                        true
+                    } catch (e: PackageManager.NameNotFoundException) {
+                        false
+                    }
+                    result.success(installed)
+                }
+                "shareToVidswift" -> {
+                    val url = call.argument<String>("url") ?: ""
+                    try {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, url)
+                            setPackage("com.vidswift.vidswift")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
                 }
                 else -> result.notImplemented()
             }

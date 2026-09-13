@@ -1,6 +1,5 @@
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
@@ -246,17 +245,32 @@ class VideoController extends GetxController {
     }
   }
 
+  static const _vidswiftChannel = MethodChannel('com.dramahub.drama_hub/vidswift');
+
   Future<void> _handleVidswiftShare() async {
     try {
-      final intent = AndroidIntent(
-        action: 'action_send',
-        package: 'com.vidswift.vidswift',
-        type: 'text/plain',
-        arguments: {'android.intent.extra.TEXT': episode.watchUrl},
-      );
-      await intent.launch();
+      final installed = await _vidswiftChannel.invokeMethod<bool>('isInstalled') ?? false;
+      if (!installed) {
+        Get.bottomSheet(
+          const VidswiftInstallSheet(),
+          isScrollControlled: true,
+          ignoreSafeArea: false,
+        );
+        return;
+      }
+      final launched = await _vidswiftChannel.invokeMethod<bool>(
+        'shareToVidswift',
+        {'url': episode.watchUrl},
+      ) ?? false;
+      if (!launched) {
+        Get.bottomSheet(
+          const VidswiftInstallSheet(),
+          isScrollControlled: true,
+          ignoreSafeArea: false,
+        );
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('Vidswift not found: $e');
+      if (kDebugMode) debugPrint('Vidswift channel error: $e');
       Get.bottomSheet(
         const VidswiftInstallSheet(),
         isScrollControlled: true,
