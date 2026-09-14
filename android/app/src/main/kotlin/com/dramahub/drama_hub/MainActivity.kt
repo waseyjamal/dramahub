@@ -42,12 +42,12 @@ class MainActivity : FlutterActivity() {
                     val installed = try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             packageManager.getPackageInfo(
-                                "com.vidswift.vidswift",
+                                "com.vidblaze.vidblaze",
                                 PackageManager.PackageInfoFlags.of(0)
                             )
                         } else {
                             @Suppress("DEPRECATION")
-                            packageManager.getPackageInfo("com.vidswift.vidswift", 0)
+                            packageManager.getPackageInfo("com.vidblaze.vidblaze", 0)
                         }
                         true
                     } catch (e: PackageManager.NameNotFoundException) {
@@ -61,7 +61,7 @@ class MainActivity : FlutterActivity() {
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, url)
-                            setPackage("com.vidswift.vidswift")
+                            setPackage("com.vidblaze.vidblaze")
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         startActivity(intent)
