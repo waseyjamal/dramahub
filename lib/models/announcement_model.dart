@@ -9,6 +9,7 @@ class AnnouncementModel {
   final String? message;
   final String? imageUrl;
   final String? actionLabel;
+  final String? actionUrl;   // general type only — opens external URL
   final String? actionDramaId;
   final int? actionEpisodeNumber;
   final bool showOnce;
@@ -21,6 +22,7 @@ class AnnouncementModel {
     this.message,
     this.imageUrl,
     this.actionLabel,
+    this.actionUrl,
     this.actionDramaId,
     this.actionEpisodeNumber,
     required this.showOnce,
@@ -30,9 +32,11 @@ class AnnouncementModel {
   bool get hasTitle => title != null && title!.trim().isNotEmpty;
   bool get hasMessage => message != null && message!.trim().isNotEmpty;
   bool get hasAction =>
-      actionDramaId != null && actionDramaId!.isNotEmpty ||
-      actionLabel != null && actionLabel!.isNotEmpty;
+      (actionDramaId != null && actionDramaId!.isNotEmpty) ||
+      (actionUrl != null && actionUrl!.isNotEmpty) ||
+      (actionLabel != null && actionLabel!.isNotEmpty);
   bool get hasActionLabel => actionLabel != null && actionLabel!.trim().isNotEmpty;
+  bool get hasActionUrl => actionUrl != null && actionUrl!.trim().isNotEmpty;
   bool get navigatesToDrama =>
       actionDramaId != null && actionDramaId!.isNotEmpty;
 
@@ -61,6 +65,10 @@ class AnnouncementModel {
     final message =
         (rawMessage != null && rawMessage.isNotEmpty) ? rawMessage : null;
 
+    final rawActionUrl = (json['action_url'] as String?)?.trim();
+    final actionUrl =
+        (rawActionUrl != null && rawActionUrl.isNotEmpty) ? rawActionUrl : null;
+
     return AnnouncementModel(
       id: (json['id'] as String?)?.trim() ?? '',
       enabled: json['enabled'] as bool? ?? false,
@@ -69,6 +77,7 @@ class AnnouncementModel {
       message: message,
       imageUrl: imageUrl,
       actionLabel: actionLabel,
+      actionUrl: actionUrl,
       actionDramaId: actionDramaId,
       actionEpisodeNumber: json['action_episode_number'] as int?,
       showOnce: json['show_once'] as bool? ?? true,

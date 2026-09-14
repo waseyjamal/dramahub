@@ -450,6 +450,18 @@ class HomeController extends GetxController {
   }
 
   void _handleAnnouncementAction(AnnouncementModel ann) {
+    // General type — open external URL (Telegram, website, etc.)
+    if (ann.type == AnnouncementType.general) {
+      if (ann.hasActionUrl && AppUrls.isSafeUrl(ann.actionUrl!)) {
+        launchUrl(
+          Uri.parse(ann.actionUrl!),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      return;
+    }
+
+    // Drama / episode types — in-app navigation only
     if (!ann.navigatesToDrama) return;
 
     final drama = allDramas.firstWhereOrNull((d) => d.id == ann.actionDramaId);
