@@ -49,6 +49,9 @@ class StorageKeys {
   static const String dataVersion = 'data_version';
   static const String watchProgress = 'progress_';
   static const String playbackSpeed = 'playback_speed';
+
+  // Announcement — stores the ID of the last shown announcement
+  static const String shownAnnouncementId = 'shown_announcement_id';
 }
 
 class AppConstants {

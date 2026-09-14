@@ -1,3 +1,5 @@
+import 'package:drama_hub/models/announcement_model.dart';
+
 /// Model for app configuration
 class AppConfigModel {
   final String appName;
@@ -22,6 +24,9 @@ class AppConfigModel {
   final String signingApiFallback;
   final bool useSignedUrls;
 
+  // ── Announcement (admin-controlled popup) ──
+  final AnnouncementModel? announcement;
+
   AppConfigModel({
     required this.appName,
     required this.telegramUrl,
@@ -42,6 +47,7 @@ class AppConfigModel {
     required this.signingApi,
     required this.signingApiFallback,
     required this.useSignedUrls,
+    this.announcement,
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -81,6 +87,13 @@ class AppConfigModel {
       signingApiFallback:
           (json['signing_api_fallback'] as String?)?.trim() ?? '',
       useSignedUrls: json['use_signed_urls'] ?? false,
+      // ── Announcement — null if key absent or not a map ──
+      announcement:
+          json['announcement'] is Map<String, dynamic>
+              ? AnnouncementModel.fromJson(
+                  json['announcement'] as Map<String, dynamic>,
+                )
+              : null,
     );
   }
 
@@ -105,6 +118,7 @@ class AppConfigModel {
       signingApi: '',
       signingApiFallback: '',
       useSignedUrls: false,
+      announcement: null,
     );
   }
 }

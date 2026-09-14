@@ -15,6 +15,8 @@ import 'package:drama_hub/utils/constants.dart';
 import 'package:drama_hub/config/app_config_service.dart';
 import 'dart:async';
 import 'package:drama_hub/controllers/episodes_controller.dart';
+import 'package:drama_hub/models/announcement_model.dart';
+import 'package:drama_hub/widgets/announcement_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeController extends GetxController {
@@ -220,6 +222,8 @@ class HomeController extends GetxController {
     // Requires latest_episode_number + latest_episode_date in dramas.json.
     // When you upload a new episode, update those two fields + bump data_version.
     _buildLatestEpisodesFromDramas(regular);
+
+    _maybeShowAnnouncement();
   }
 
   /// Builds the "Latest Episodes" home section from drama model data.
@@ -398,7 +402,70 @@ class HomeController extends GetxController {
     }
   }
 
+  bool _announcementShown = false;
   bool _updateDialogShown = false;
+
+  // ── Announcement ──────────────────────────────────────────────────────────
+
+  /// Schedules the announcement check after the home screen has rendered.
+  /// Guard prevents showing more than once per session.
+  void _maybeShowAnnouncement() {
+    if (_announcementShown) return;
+    _announcementShown = true;
+    Future.delayed(
+      const Duration(milliseconds: 900),
+      _checkAndShowAnnouncement,
+    );
+  }
+
+  Future<void> _checkAndShowAnnouncement() async {
+    try {
+      final config = AppConfigService.instance.config;
+      final ann = config.announcement;
+      if (ann == null) return;
+      if (!ann.enabled) return;
+      if (ann.id.isEmpty) return;
+
+      if (ann.showOnce) {
+        final prefs = await SharedPreferences.getInstance();
+        final shownId = prefs.getString(StorageKeys.shownAnnouncementId) ?? '';
+        if (shownId == ann.id) return;
+        // Mark as shown immediately so a crash/kill after dialog open
+        // doesn't re-show it on next launch.
+        await prefs.setString(StorageKeys.shownAnnouncementId, ann.id);
+      }
+
+      if (Get.context == null) return;
+
+      Get.dialog(
+        AnnouncementDialog(
+          announcement: ann,
+          onAction: () => _handleAnnouncementAction(ann),
+        ),
+        barrierDismissible: true,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('Announcement error: $e');
+    }
+  }
+
+  void _handleAnnouncementAction(AnnouncementModel ann) {
+    if (!ann.navigatesToDrama) return;
+
+    final drama = allDramas.firstWhereOrNull((d) => d.id == ann.actionDramaId);
+    if (drama == null) return;
+
+    if (ann.actionEpisodeNumber != null) {
+      Get.toNamed(
+        AppRoutes.episodes,
+        arguments: {'drama': drama, 'autoPlayEpisode': ann.actionEpisodeNumber},
+      )?.then((_) => loadLastWatched());
+    } else {
+      goToEpisodes(drama);
+    }
+  }
+
+  // ── Update dialog ─────────────────────────────────────────────────────────
 
   void _checkAndShowUpdateDialog() {
     if (_updateDialogShown) return;
