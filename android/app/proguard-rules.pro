@@ -1,5 +1,4 @@
 # proguard-rules.pro
-# ✅ Added Yandex Mobile Ads + Google AdMob rules at bottom
 
 -keep class com.google.android.gms.common.** { *; }
 # Keep Flutter
@@ -96,40 +95,10 @@
 -keep class com.aaassseee.screenbrightness.** { *; }
 -dontwarn com.aaassseee.screenbrightness.**
 
-# ── Yandex Mobile Ads SDK ────────────────────────────────────────────
--keep class com.yandex.mobile.ads.** { *; }
--dontwarn com.yandex.mobile.ads.**
--keep class com.yandex.ads.** { *; }
--dontwarn com.yandex.ads.**
+# UnityAds / LevelPlay adapter
+-dontwarn com.unity3d.**
+-keep class com.unity3d.** { *; }
 
-# Google AdMob (required by Yandex mobileads-google adapter)
--keep class com.google.android.gms.ads.** { *; }
--dontwarn com.google.android.gms.ads.**
--keep class com.google.ads.** { *; }
--dontwarn com.google.ads.**
-
-# VK Ads / myTarget (Yandex ecosystem adapter)
--keep class com.my.target.** { *; }
--dontwarn com.my.target.**
-
-# Pangle (ByteDance)
--dontwarn com.bytedance.**
--keep class com.bytedance.** { *; }
--dontwarn com.pangle.**
--keep class com.pangle.** { *; }
-
-# Start.io
--dontwarn com.startapp.**
--keep class com.startapp.** { *; }
-
-# Tapjoy
--dontwarn com.tapjoy.**
--keep class com.tapjoy.** { *; }
-
-# IronSource (via Yandex mediation)
--dontwarn com.ironsource.**
--keep class com.ironsource.** { *; }
-
-# AppLovin (via Yandex mediation)
--dontwarn com.applovin.**
--keep class com.applovin.** { *; }
+# Vungle / Liftoff (via LevelPlay)
+-dontwarn com.vungle.**
+-keep class com.vungle.** { *; }
