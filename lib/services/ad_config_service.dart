@@ -17,6 +17,8 @@ class AdConfigService {
   AdConfigModel get config => _config;
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
+  DateTime? _lastRefreshTime;
+  static const Duration _refreshThrottle = Duration(seconds: 30);
 
   /// Call this once at app startup
   Future<void> initialize() async {
@@ -74,8 +76,16 @@ class AdConfigService {
     }
   }
 
-  /// Refresh config (call when app resumes from background)
-  Future<void> refresh() => initialize();
+  /// Refresh config (call when app resumes from background).
+  /// Throttled to at most once per 30 seconds.
+  Future<void> refresh() async {
+    if (_lastRefreshTime != null) {
+      final elapsed = DateTime.now().difference(_lastRefreshTime!);
+      if (elapsed < _refreshThrottle) return;
+    }
+    _lastRefreshTime = DateTime.now();
+    return initialize();
+  }
 
   /// Quick helpers
   bool get adsEnabled => _config.adsEnabled;
