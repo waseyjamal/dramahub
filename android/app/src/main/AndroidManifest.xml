@@ -62,14 +62,9 @@
             android:value="2"/>
 
 
-        <!-- LevelPlay (IronSource) App ID — uncomment if restoring LevelPlay -->
-        <!-- <meta-data
-            android:name="com.ironsource.sdk.applicationId"
-            android:value="25d9acedd" /> -->
-
         <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-7412758971890594~8929628054" />
+            android:name="com.ironsource.sdk.applicationId"
+            android:value="25d9acedd" />
     </application>
 
     <queries>
