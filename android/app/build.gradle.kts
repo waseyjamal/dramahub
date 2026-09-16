@@ -69,14 +69,14 @@ dependencies {
     implementation("com.android.installreferrer:installreferrer:2.2")
 
     // ── LevelPlay mediation adapters ──────────────────────────────────────────────
-    implementation("com.unity3d.ads-mediation:mediation-sdk:9.4.3")
-    implementation("com.unity3d.ads-mediation:unityads-adapter:5.9.0")
+    implementation("com.unity3d.ads-mediation:mediation-sdk:9.6.0")
+    implementation("com.unity3d.ads-mediation:unityads-adapter:5.12.0")
     implementation("com.unity3d.ads:unity-ads:4.18.1")
-    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.6.0")
+    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.9.0")
     implementation("com.chartboost:chartboost-sdk:9.12.1")
-    implementation("com.unity3d.ads-mediation:inmobi-adapter:5.7.0")
+    implementation("com.unity3d.ads-mediation:inmobi-adapter:5.9.0")
     implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.3.0")
-    implementation("com.unity3d.ads-mediation:vungle-adapter:5.10.0")
+    implementation("com.unity3d.ads-mediation:vungle-adapter:5.14.0")
     implementation("com.vungle:vungle-ads:7.7.4")
     // ─────────────────────────────────────────────────────────────────────────────
 }
