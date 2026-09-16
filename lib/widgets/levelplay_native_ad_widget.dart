@@ -12,9 +12,8 @@ class LevelPlayNativeAdWidget extends StatefulWidget {
       _LevelPlayNativeAdWidgetState();
 }
 
-class _LevelPlayNativeAdWidgetState extends State<LevelPlayNativeAdWidget> {
-  static const String _nativeAdUnitId = 'l3zy61iv0ebvaaua';
-
+class _LevelPlayNativeAdWidgetState extends State<LevelPlayNativeAdWidget>
+    with LevelPlayNativeAdListener {
   LevelPlayNativeAd? _nativeAd;
   bool _adLoaded = false;
 
@@ -33,37 +32,46 @@ class _LevelPlayNativeAdWidgetState extends State<LevelPlayNativeAdWidget> {
   }
 
   void _loadAd() {
-    final ad = LevelPlayNativeAd.builder()
-        .withAdUnitId(_nativeAdUnitId)
-        .withListener(_NativeAdListener(
-          onAdLoaded: (ad, adInfo) {
-            if (!mounted) {
-              ad.destroy();
-              return;
-            }
-            setState(() => _adLoaded = true);
-            if (kDebugMode) {
-              debugPrint('✅ LevelPlay Native loaded on ${widget.screenKey}');
-            }
-          },
-          onAdLoadFailed: (ad, error) {
-            if (kDebugMode) {
-              debugPrint(
-                '❌ LevelPlay Native failed on ${widget.screenKey}: $error',
-              );
-            }
-          },
-        ))
+    _nativeAd = LevelPlayNativeAd.builder()
+        .withListener(this)
         .build();
-    ad.loadAd();
-    _nativeAd = ad;
+    _nativeAd!.loadAd();
   }
 
   @override
   void dispose() {
-    _nativeAd?.destroy();
+    _nativeAd?.destroyAd();
     super.dispose();
   }
+
+  // ── LevelPlayNativeAdListener ─────────────────────────────────────────────
+
+  @override
+  void onAdLoaded(LevelPlayNativeAd nativeAd, AdInfo adInfo) {
+    if (!mounted) {
+      nativeAd.destroyAd();
+      return;
+    }
+    setState(() => _adLoaded = true);
+    if (kDebugMode) debugPrint('✅ LevelPlay Native loaded on ${widget.screenKey}');
+  }
+
+  @override
+  void onAdLoadFailed(LevelPlayNativeAd nativeAd, IronSourceError error) {
+    if (kDebugMode) {
+      debugPrint('❌ LevelPlay Native failed on ${widget.screenKey}: $error');
+    }
+  }
+
+  @override
+  void onAdClicked(LevelPlayNativeAd nativeAd, AdInfo adInfo) {}
+
+  @override
+  void onAdImpression(LevelPlayNativeAd nativeAd, AdInfo adInfo) {
+    if (kDebugMode) debugPrint('👁️ LevelPlay Native impression');
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -74,36 +82,10 @@ class _LevelPlayNativeAdWidgetState extends State<LevelPlayNativeAdWidget> {
       child: SizedBox(
         width: double.infinity,
         child: LevelPlayNativeAdView(
-          ad: _nativeAd!,
+          nativeAd: _nativeAd,
           templateType: LevelPlayTemplateType.SMALL,
         ),
       ),
     );
-  }
-}
-
-// ── Native Ad Listener ────────────────────────────────────────────────────────
-
-class _NativeAdListener with LevelPlayNativeAdListener {
-  final void Function(LevelPlayNativeAd ad, LevelPlayAdInfo adInfo) onAdLoaded;
-  final void Function(LevelPlayNativeAd ad, LevelPlayAdError error)
-  onAdLoadFailed;
-
-  _NativeAdListener({required this.onAdLoaded, required this.onAdLoadFailed});
-
-  @override
-  void onAdLoaded(LevelPlayNativeAd ad, LevelPlayAdInfo adInfo) =>
-      onAdLoaded(ad, adInfo);
-
-  @override
-  void onAdLoadFailed(LevelPlayNativeAd ad, LevelPlayAdError error) =>
-      onAdLoadFailed(ad, error);
-
-  @override
-  void onAdClicked(LevelPlayNativeAd ad, LevelPlayAdInfo adInfo) {}
-
-  @override
-  void onAdImpression(LevelPlayNativeAd ad, LevelPlayAdInfo adInfo) {
-    if (kDebugMode) debugPrint('👁️ LevelPlay Native impression');
   }
 }
