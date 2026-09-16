@@ -75,8 +75,8 @@ dependencies {
     implementation("com.unity3d.ads-mediation:chartboost-adapter:5.9.0")
     implementation("com.chartboost:chartboost-sdk:9.12.1")
     implementation("com.unity3d.ads-mediation:inmobi-adapter:5.9.0")
-    implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.3.0")
+    implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.4.1")
     implementation("com.unity3d.ads-mediation:vungle-adapter:5.14.0")
-    implementation("com.vungle:vungle-ads:7.7.4")
+    implementation("com.vungle:vungle-ads:7.7.8")
     // ─────────────────────────────────────────────────────────────────────────────
 }
