@@ -1,7 +1,4 @@
 // lib/models/ad_config_model.dart
-// ✅ Added: yandexEnabled to AdNetworksConfig
-// ✅ casEnabled kept for backward compat (old app versions won't crash)
-// ✅ All other models unchanged
 
 class AdConfigModel {
   final bool adsEnabled;

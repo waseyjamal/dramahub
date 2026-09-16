@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:drama_hub/models/drama_model.dart';
 import 'package:drama_hub/services/data_service.dart';
 import 'package:drama_hub/services/ad_service.dart';
-import 'package:drama_hub/services/yandex_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -329,8 +328,7 @@ class HomeController extends GetxController {
   }
 
   void goToEpisodes(DramaModel drama) {
-    YandexService.instance.onUserNavigated();
-    _analytics.logEvent(
+        _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
     );
@@ -342,8 +340,7 @@ class HomeController extends GetxController {
 
   void goToEpisodesSkipAd(DramaModel drama) {
     Get.delete<EpisodesController>(force: true);
-    YandexService.instance.onUserNavigated();
-    _analytics.logEvent(
+        _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
     );
@@ -355,8 +352,7 @@ class HomeController extends GetxController {
 
   void goToLastWatchedEpisode() {
     if (lastDramaId.value.isEmpty || lastEpisodeNumber.value == 0) return;
-    YandexService.instance.onUserNavigated();
-
+    
     final drama = allDramas.firstWhereOrNull((d) => d.id == lastDramaId.value);
     if (drama == null) return;
 

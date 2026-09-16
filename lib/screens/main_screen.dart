@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:drama_hub/services/ad_service.dart';
-import 'package:drama_hub/services/yandex_service.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/ui_system/colors.dart';
@@ -61,8 +60,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onTabTapped(int index) {
     HapticFeedback.lightImpact();
-    if (index != 0) YandexService.instance.onUserNavigated();
-    setState(() => _currentIndex = index);
+    if (index != 0)     setState(() => _currentIndex = index);
     _triggerTabAd(index);
   }
 

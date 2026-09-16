@@ -15,7 +15,7 @@ import 'package:drama_hub/ui_system/typography.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
 import 'package:drama_hub/widgets/telegram_cta_button.dart';
-import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
+import 'package:drama_hub/widgets/levelplay_native_ad_widget.dart';
 import 'package:drama_hub/widgets/home/hero_slider.dart';
 import 'package:drama_hub/widgets/home/drama_card.dart';
 import 'package:drama_hub/widgets/home/continue_watching_card.dart';
@@ -405,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
 
-                  const YandexBannerAdWidget(screenKey: 'home_screen'),
+                  const LevelPlayNativeAdWidget(screenKey: 'home_screen'),
                   const SizedBox(height: AppSpacing.md),
                 ]),
               ),
