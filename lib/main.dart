@@ -1,18 +1,10 @@
-// lib/main.dart
-// ✅ Added: MobileAds.initialize() before Future.wait
-// ✅ Added: YandexService registered + initEarly() in Future.wait
-// ✅ Added: YandexService.instance.refreshAdLoad() on app resume
-// ✅ Everything else: zero changes
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:yandex_mobileads/mobile_ads.dart';
 import 'package:drama_hub/services/ad_config_service.dart';
-import 'package:drama_hub/services/yandex_service.dart';
+import 'package:drama_hub/services/ad_service.dart';
 import 'package:get/get.dart';
 import 'package:drama_hub/services/download_service.dart';
-import 'package:drama_hub/services/ad_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -44,18 +36,9 @@ Future<void> main() async {
 
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // ✅ Yandex SDK must initialize before any ad loads — do it before Future.wait
-  try {
-    YandexAds.initialize();
-    if (kDebugMode) debugPrint('✅ Yandex MobileAds initialized');
-  } catch (e) {
-    if (kDebugMode) debugPrint('❌ Yandex MobileAds init error: $e');
-  }
-
   // Register services
   Get.put(DownloadService(), permanent: true);
-  // ✅ YandexService registered before Future.wait
-  Get.put(YandexService(), permanent: true);
+  Get.put(AdService(), permanent: true);
 
   await Future.wait([
     AppConfigService.instance.loadConfig().timeout(
@@ -63,11 +46,11 @@ Future<void> main() async {
       onTimeout: () => false,
     ),
     AdConfigService.instance.initialize(),
-    // ✅ Yandex loads ads in parallel during splash
-    YandexService.instance.initEarly().timeout(
-      const Duration(seconds: 3),
+    // LevelPlay init during splash — ads start loading before first screen
+    AdService.instance.initLevelPlayEarly().timeout(
+      const Duration(seconds: 5),
       onTimeout: () {
-        if (kDebugMode) debugPrint('ℹ️ Yandex pre-load timed out — continuing');
+        if (kDebugMode) debugPrint('ℹ️ LevelPlay pre-init timed out — continuing');
       },
     ),
   ]);
@@ -151,14 +134,9 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      YandexService.instance.cancelPendingAppOpen();
-    }
     if (state == AppLifecycleState.resumed) {
-      YandexService.instance.setReturnedFromBackground();
       AdConfigService.instance.refresh().then((_) {
-        YandexService.instance.refreshAdLoad();
-        AdService.instance.showAppOpen();
+        AdService.instance.refreshAdLoad();
       });
       // ✅ Force config reload on resume — bypasses 5-min throttle
       // This is what makes new episodes visible immediately when user

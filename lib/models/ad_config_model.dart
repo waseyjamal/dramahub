@@ -1,10 +1,8 @@
 // lib/models/ad_config_model.dart
-// ✅ Added: yandexEnabled to AdNetworksConfig
-// ✅ casEnabled kept for backward compat (old app versions won't crash)
-// ✅ All other models unchanged
 
 class AdConfigModel {
   final bool adsEnabled;
+  final int sessionResetMinutes;
   final AppOpenAdConfig appOpen;
   final InterstitialAdConfig interstitial;
   final RewardedAdConfig rewarded;
@@ -15,6 +13,7 @@ class AdConfigModel {
 
   AdConfigModel({
     required this.adsEnabled,
+    required this.sessionResetMinutes,
     required this.appOpen,
     required this.interstitial,
     required this.rewarded,
@@ -27,6 +26,7 @@ class AdConfigModel {
   factory AdConfigModel.fromJson(Map<String, dynamic> json) {
     return AdConfigModel(
       adsEnabled: json['ads_enabled'] ?? true,
+      sessionResetMinutes: json['session_reset_minutes'] ?? 90,
       appOpen: AppOpenAdConfig.fromJson(json['app_open'] ?? {}),
       interstitial: InterstitialAdConfig.fromJson(json['interstitial'] ?? {}),
       rewarded: RewardedAdConfig.fromJson(json['rewarded'] ?? {}),
@@ -40,6 +40,7 @@ class AdConfigModel {
   factory AdConfigModel.defaults() {
     return AdConfigModel(
       adsEnabled: true,
+      sessionResetMinutes: 90,
       appOpen: AppOpenAdConfig.defaults(),
       interstitial: InterstitialAdConfig.defaults(),
       rewarded: RewardedAdConfig.defaults(),
@@ -52,6 +53,7 @@ class AdConfigModel {
 
   Map<String, dynamic> toJson() => {
     'ads_enabled': adsEnabled,
+    'session_reset_minutes': sessionResetMinutes,
     'app_open': appOpen.toJson(),
     'interstitial': interstitial.toJson(),
     'rewarded': rewarded.toJson(),
@@ -65,32 +67,28 @@ class AdConfigModel {
 // ── Ad Networks Config ────────────────────────────────────────────────────
 class AdNetworksConfig {
   final bool levelplayEnabled;
-  final bool casEnabled;     // kept for backward compat — old JSON won't break
-  final bool yandexEnabled;  // ✅ NEW
+  final bool casEnabled;
 
   AdNetworksConfig({
     required this.levelplayEnabled,
     required this.casEnabled,
-    required this.yandexEnabled,
   });
 
   factory AdNetworksConfig.fromJson(Map<String, dynamic> json) =>
       AdNetworksConfig(
         levelplayEnabled: json['levelplay_enabled'] ?? true,
         casEnabled: json['cas_enabled'] ?? false,
-        yandexEnabled: json['yandex_enabled'] ?? true,
+        // yandex_enabled ignored — Yandex removed
       );
 
   factory AdNetworksConfig.defaults() => AdNetworksConfig(
     levelplayEnabled: true,
     casEnabled: false,
-    yandexEnabled: true,
   );
 
   Map<String, dynamic> toJson() => {
     'levelplay_enabled': levelplayEnabled,
     'cas_enabled': casEnabled,
-    'yandex_enabled': yandexEnabled,
   };
 }
 
@@ -355,12 +353,14 @@ class NativeAdConfig {
   final bool enabled;
   final int everyNthCard;
   final String adUnitId;
+  final String provider;
   final Map<String, bool> screens;
 
   NativeAdConfig({
     required this.enabled,
     required this.everyNthCard,
     required this.adUnitId,
+    required this.provider,
     required this.screens,
   });
 
@@ -370,6 +370,7 @@ class NativeAdConfig {
       enabled: json['enabled'] ?? false,
       everyNthCard: json['every_nth_card'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? '',
+      provider: json['native_provider'] ?? 'levelplay',
       screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
     );
   }
@@ -378,6 +379,7 @@ class NativeAdConfig {
     enabled: false,
     everyNthCard: 5,
     adUnitId: '',
+    provider: 'levelplay',
     screens: {
       'home_screen': false,
       'episodes_screen': false,
@@ -397,6 +399,7 @@ class NativeAdConfig {
     'enabled': enabled,
     'every_nth_card': everyNthCard,
     'ad_unit_id': adUnitId,
+    'native_provider': provider,
     'screens': screens,
   };
 }

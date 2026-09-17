@@ -1,6 +1,6 @@
 import 'package:drama_hub/utils/constants.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
+import 'package:drama_hub/widgets/levelplay_native_ad_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -468,7 +468,7 @@ class _NormalContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         const _SearchBar(),
         const SizedBox(height: AppSpacing.md),
-        YandexBannerAdWidget(screenKey: 'episodes_screen'),
+        LevelPlayNativeAdWidget(screenKey: 'episodes_screen'),
         const SizedBox(height: AppSpacing.xl),
       ],
     );

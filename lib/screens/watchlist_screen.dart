@@ -11,7 +11,7 @@ import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
-import 'package:drama_hub/widgets/yandex_banner_ad_widget.dart';
+import 'package:drama_hub/widgets/levelplay_native_ad_widget.dart';
 
 class WatchlistScreen extends StatefulWidget {
   final VoidCallback? onBrowseTapped;
@@ -48,7 +48,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                 AppSpacing.lg,
                 0,
               ),
-              child: YandexBannerAdWidget(screenKey: 'watchlist_screen'),
+              child: LevelPlayNativeAdWidget(screenKey: 'watchlist_screen'),
             ),
             Expanded(
               child: Obx(() {
