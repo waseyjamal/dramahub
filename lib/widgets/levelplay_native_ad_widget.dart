@@ -32,9 +32,10 @@ class _LevelPlayNativeAdWidgetState extends State<LevelPlayNativeAdWidget>
   }
 
   void _loadAd() {
-    _nativeAd = LevelPlayNativeAd.builder()
-        .withListener(this)
-        .build();
+    final placementName = _cfg.config.native.adUnitId;
+    var builder = LevelPlayNativeAd.builder().withListener(this);
+    if (placementName.isNotEmpty) builder = builder.withPlacementName(placementName);
+    _nativeAd = builder.build();
     _nativeAd!.loadAd();
   }
 
