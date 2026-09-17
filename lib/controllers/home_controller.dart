@@ -328,7 +328,7 @@ class HomeController extends GetxController {
   }
 
   void goToEpisodes(DramaModel drama) {
-        _analytics.logEvent(
+    _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
     );
@@ -340,7 +340,7 @@ class HomeController extends GetxController {
 
   void goToEpisodesSkipAd(DramaModel drama) {
     Get.delete<EpisodesController>(force: true);
-        _analytics.logEvent(
+    _analytics.logEvent(
       name: 'drama_opened',
       parameters: {'drama_id': drama.id, 'drama_title': drama.title},
     );

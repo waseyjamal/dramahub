@@ -60,7 +60,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onTabTapped(int index) {
     HapticFeedback.lightImpact();
-    if (index != 0)     setState(() => _currentIndex = index);
+    setState(() => _currentIndex = index);
     _triggerTabAd(index);
   }
 
