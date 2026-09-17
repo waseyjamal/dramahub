@@ -161,7 +161,7 @@ class InterstitialAdConfig {
       cooldownSeconds: json['cooldown_seconds'] ?? 30,
       maxPerSession: json['max_per_session'] ?? 3,
       adUnitId: json['ad_unit_id'] ?? '',
-      screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
+      screens: screensJson.map((k, v) => MapEntry(k, v is bool ? v : false)),
       priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
       priority2: json['priority_2'] ?? 'yandex',
@@ -170,7 +170,7 @@ class InterstitialAdConfig {
   }
 
   factory InterstitialAdConfig.defaults() => InterstitialAdConfig(
-    enabled: false,
+    enabled: true,
     cooldownSeconds: 30,
     maxPerSession: 3,
     adUnitId: '',
@@ -244,7 +244,7 @@ class RewardedAdConfig {
       cooldownSeconds: json['cooldown_seconds'] ?? 30,
       maxPerSession: json['max_per_session'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? '',
-      screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
+      screens: screensJson.map((k, v) => MapEntry(k, v is bool ? v : false)),
       priority1: json['priority_1'] ?? 'levelplay',
       priority1Enabled: json['priority_1_enabled'] ?? true,
       priority2: json['priority_2'] ?? 'yandex',
@@ -253,7 +253,7 @@ class RewardedAdConfig {
   }
 
   factory RewardedAdConfig.defaults() => RewardedAdConfig(
-    enabled: false,
+    enabled: true,
     cooldownSeconds: 30,
     maxPerSession: 5,
     adUnitId: '',
@@ -371,7 +371,7 @@ class NativeAdConfig {
       everyNthCard: json['every_nth_card'] ?? 5,
       adUnitId: json['ad_unit_id'] ?? '',
       provider: json['native_provider'] ?? 'levelplay',
-      screens: screensJson.map((k, v) => MapEntry(k, v as bool? ?? false)),
+      screens: screensJson.map((k, v) => MapEntry(k, v is bool ? v : false)),
     );
   }
 

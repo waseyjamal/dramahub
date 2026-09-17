@@ -56,11 +56,13 @@ class AdService extends GetxService {
   }
 
   // ── Refresh on resume ─────────────────────────────────────────────────────
-  void refreshAdLoad() {
+  Future<void> refreshAdLoad() async {
     if (!_initialized) return;
     if (!_cfg.config.adNetworks.levelplayEnabled) return;
-    _loadInterstitial();
-    _loadRewarded();
+    final interstitialReady = await _interstitialAd?.isAdReady() ?? false;
+    if (!interstitialReady) _loadInterstitial();
+    final rewardedReady = await _rewardedAd?.isAdReady() ?? false;
+    if (!rewardedReady) _loadRewarded();
   }
 
   // ── LevelPlay init ────────────────────────────────────────────────────────
@@ -91,6 +93,7 @@ class AdService extends GetxService {
     if (!_initialized) return;
     _interstitialRetryTimer?.cancel();
     _interstitialRetryTimer = null;
+    _interstitialAd?.setListener(_InterstitialListener(onLoaded: () {}, onFailed: () {}));
     _interstitialAd = LevelPlayInterstitialAd(adUnitId: _interstitialAdUnitId);
     _interstitialAd!.setListener(_InterstitialListener(
       onLoaded: () {
@@ -112,6 +115,7 @@ class AdService extends GetxService {
     if (!_initialized) return;
     _rewardedRetryTimer?.cancel();
     _rewardedRetryTimer = null;
+    _rewardedAd?.setListener(_RewardedListener(onLoaded: () {}, onFailed: () {}, onRewarded: () {}, onClosed: () {}));
     _rewardedAd = LevelPlayRewardedAd(adUnitId: _rewardedAdUnitId);
     _rewardedAd!.setListener(_RewardedListener(
       onLoaded: () {
@@ -220,7 +224,16 @@ class AdService extends GetxService {
           _loadInterstitial();
         },
       ));
-      await _interstitialAd!.showAd();
+      try {
+        await _interstitialAd!.showAd();
+      } catch (e) {
+        _interstitialShowing = false;
+        _adCurrentlyShowing = false;
+        if (!completer.isCompleted) completer.complete(false);
+        if (kDebugMode) debugPrint('❌ Interstitial showAd() threw: $e');
+        _loadInterstitial();
+        return false;
+      }
       return completer.future.timeout(
         const Duration(seconds: 30),
         onTimeout: () {
@@ -274,7 +287,17 @@ class AdService extends GetxService {
           _loadRewarded();
         },
       ));
-      await _rewardedAd!.showAd();
+      try {
+        await _rewardedAd!.showAd();
+      } catch (e) {
+        _rewardedShowing = false;
+        _adCurrentlyShowing = false;
+        onNotAvailable?.call();
+        if (!completer.isCompleted) completer.complete(false);
+        if (kDebugMode) debugPrint('❌ Rewarded showAd() threw: $e');
+        _loadRewarded();
+        return false;
+      }
       return completer.future.timeout(
         const Duration(seconds: 60),
         onTimeout: () {
