@@ -607,8 +607,10 @@ class _InterstitialListener with LevelPlayInterstitialAdListener {
   @override
   void onAdDisplayed(LevelPlayAdInfo adInfo) {}
   @override
-  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
-      onShowFailed?.call();
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) {
+    if (kDebugMode) debugPrint('❌ Interstitial display failed: $error');
+    onShowFailed?.call();
+  }
   @override
   void onAdClicked(LevelPlayAdInfo adInfo) {}
   @override
@@ -639,8 +641,10 @@ class _RewardedListener with LevelPlayRewardedAdListener {
   @override
   void onAdDisplayed(LevelPlayAdInfo adInfo) {}
   @override
-  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
-      onShowFailed?.call();
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) {
+    if (kDebugMode) debugPrint('❌ Rewarded display failed: $error');
+    onShowFailed?.call();
+  }
   @override
   void onAdClicked(LevelPlayAdInfo adInfo) {}
   @override
