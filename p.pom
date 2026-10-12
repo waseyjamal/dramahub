@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.unity3d.ads-mediation</groupId>
+  <artifactId>vungle-adapter</artifactId>
+  <version>5.14.0</version>
+  <packaging>aar</packaging>
+  <name>vungle-adapter</name>
+  <description>Vungle adapter for Unity LevelPlay for Android</description>
+  <url>http://developers.is.com/ironsource-mobile/android/</url>
+  <licenses>
+    <license>
+      <name>Unity LevelPlay License</name>
+      <url>https://unity.com/legal/one-operate-services-terms-of-service</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>Unity LevelPlay</id>
+      <name>Unity LevelPlay</name>
+      <email>svc-levelplay@unity3d.com</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>Not available for public access</connection>
+    <developerConnection>Not available for public access</developerConnection>
+    <url>Not available for public access</url>
+  </scm>
+</project>

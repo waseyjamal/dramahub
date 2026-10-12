@@ -9,15 +9,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/firebase_options.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:drama_hub/config/app_config_service.dart';
+import 'package:drama_hub/services/force_update_service.dart';
 import 'package:drama_hub/security/root_checker.dart';
-import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
 import 'package:drama_hub/routes/app_routes.dart';
-import 'package:drama_hub/utils/constants.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -26,12 +25,18 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   try {
-    await FirebaseAuth.instance.signInAnonymously();
+    await FirebaseAuth.instance
+        .signInAnonymously()
+        .timeout(const Duration(seconds: 3));
   } catch (e) {
     if (kDebugMode) debugPrint('Anonymous auth failed: $e');
   }
 
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
 
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -39,6 +44,10 @@ Future<void> main() async {
   // Register services
   Get.put(DownloadService(), permanent: true);
   Get.put(AdService(), permanent: true);
+
+  // Restore a saved force-update block first — works offline and before the
+  // config fetch, so an old build is never usable even for a moment.
+  await ForceUpdateService.instance.init();
 
   await Future.wait([
     AppConfigService.instance.loadConfig().timeout(
@@ -156,9 +165,26 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
     super.dispose();
   }
 
+  static const String _rootWarningDismissedKey = 'root_warning_dismissed';
+
   Future<void> _performStartupChecks() async {
-    if (RootChecker.isDeviceRooted()) _showRootWarning();
-    _checkVersionUpdate();
+    if (RootChecker.isDeviceRooted()) await _maybeShowRootWarning();
+  }
+
+  Future<void> _maybeShowRootWarning() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_rootWarningDismissedKey) ?? false) return;
+    } catch (_) {}
+    if (!mounted) return;
+    _showRootWarning();
+  }
+
+  Future<void> _markRootWarningDismissed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_rootWarningDismissedKey, true);
+    } catch (_) {}
   }
 
   void _showRootWarning() {
@@ -177,125 +203,7 @@ class _DramaHubAppRunnerState extends State<DramaHubAppRunner>
           ),
         ],
       ),
-    );
-  }
-
-  void _checkVersionUpdate() {
-    final config = AppConfigService.instance.config;
-    if (config.latestVersion <= Constants.currentBuildVersion) return;
-    if (!config.forceUpdate) return;
-    _showForceUpdateDialog();
-  }
-
-  void _showForceUpdateDialog() {
-    final fallback = AppConfigService.instance.config.fallbackUpdate;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryRed.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.system_update_rounded,
-                    color: AppColors.primaryRed, size: 32),
-              ),
-              const SizedBox(height: 16),
-              const Text('Update Required',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text(
-                'A new version of Drama Hub is available. Please update to continue.',
-                style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              if (fallback.playstoreEnabled || !fallback.hasAtLeastOneOption)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final url = fallback.playstoreUrl;
-                      if (!AppUrls.isSafeUrl(url)) return;
-                      await launchUrl(Uri.parse(url),
-                          mode: LaunchMode.externalApplication);
-                    },
-                    icon: const Icon(Icons.download_rounded),
-                    label: const Text('Update on Play Store',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryRed,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              if (fallback.telegramEnabled) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      if (!AppUrls.isSafeUrl(fallback.telegramUrl)) return;
-                      await launchUrl(Uri.parse(fallback.telegramUrl),
-                          mode: LaunchMode.externalApplication);
-                    },
-                    icon: const Icon(Icons.send_rounded,
-                        color: Colors.white70, size: 18),
-                    label: const Text('Get Update on Telegram',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
-              if (fallback.websiteEnabled) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      if (!AppUrls.isSafeUrl(fallback.websiteUrl)) return;
-                      await launchUrl(Uri.parse(fallback.websiteUrl),
-                          mode: LaunchMode.externalApplication);
-                    },
-                    icon: const Icon(Icons.language_rounded,
-                        color: Colors.white70, size: 18),
-                    label: const Text('Download from Website',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
+    ).then((_) => _markRootWarningDismissed());
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:drama_hub/config/app_config_model.dart';
 import 'package:drama_hub/services/remote_config_service.dart';
+import 'package:drama_hub/services/force_update_service.dart';
 
 /// Service responsible for loading and managing app configuration
 class AppConfigService {
@@ -34,6 +35,10 @@ class AppConfigService {
           .fetchAppConfig();
 
       _config = AppConfigModel.fromJson(configMap);
+      ForceUpdateService.instance.onConfig(
+        _config,
+        fromServer: !remoteService.usedDefaults,
+      );
       return true;
     } catch (e) {
       if (kDebugMode) { debugPrint('Config load failed: $e'); }
@@ -62,7 +67,11 @@ class AppConfigService {
       final RemoteConfigService remoteService = RemoteConfigService();
       final Map<String, dynamic> configMap =
           await remoteService.fetchAppConfig();
+      // Both sources failed → keep current config instead of resetting to
+      // built-in defaults (which would silently turn force_update off).
+      if (remoteService.usedDefaults) return;
       _config = AppConfigModel.fromJson(configMap);
+      ForceUpdateService.instance.onConfig(_config, fromServer: true);
       _lastReloadTime = now;
       if (kDebugMode) {
         debugPrint(

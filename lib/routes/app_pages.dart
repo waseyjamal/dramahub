@@ -9,7 +9,6 @@ import 'package:drama_hub/screens/upcoming_screen.dart';
 import 'package:drama_hub/screens/about_screen.dart';
 import 'package:drama_hub/screens/privacy_policy_screen.dart';
 import 'package:drama_hub/controllers/episodes_controller.dart';
-import 'package:drama_hub/controllers/video_controller.dart';
 import 'package:drama_hub/screens/main_screen.dart';
 import 'package:drama_hub/screens/history_screen.dart';
 import 'package:drama_hub/screens/profile_screen.dart';
@@ -49,14 +48,8 @@ class AppPages {
         );
       }),
     ),
-    GetPage(
-      name: AppRoutes.video,
-      page: () => const VideoScreen(),
-      binding: BindingsBuilder(() {
-        // ✅ 4.2 — Added fenix: true
-        Get.lazyPut<VideoController>(() => VideoController(), fenix: true);
-      }),
-    ),
+    // VideoController is created per screen with a tag in VideoScreen.initState
+    GetPage(name: AppRoutes.video, page: () => const VideoScreen()),
     GetPage(name: AppRoutes.watchlist, page: () => const WatchlistScreen()),
     GetPage(name: AppRoutes.premium, page: () => const PremiumScreen()),
     GetPage(name: AppRoutes.download, page: () => const DownloadScreen()),

@@ -17,7 +17,12 @@ class RemoteConfigService {
   static const String _githubFallbackUrl =
       'https://raw.githubusercontent.com/waseyjamal/dramahub-data/main/app_config.json';
 
+  /// True when the last fetchAppConfig() returned built-in defaults because
+  /// both sources failed. Callers must not treat that result as server truth.
+  bool usedDefaults = false;
+
   Future<Map<String, dynamic>> fetchAppConfig() async {
+    usedDefaults = false;
     // Try primary (Cloudflare Worker) first
     final primary = await _fetchFrom(_configUrl);
     if (primary != null) return primary;
@@ -29,6 +34,7 @@ class RemoteConfigService {
     if (fallback != null) return fallback;
 
     if (kDebugMode) { debugPrint('⚠️ Both config sources failed — using defaults'); }
+    usedDefaults = true;
     return _defaultConfig;
   }
 

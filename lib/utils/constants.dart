@@ -3,12 +3,12 @@ import 'package:drama_hub/config/app_config_service.dart';
 class Constants {
   // App info
   static const String appName = 'Drama Hub';
-  static const String appVersion = '1.3.1';
+  static const String appVersion = '1.3.3';
 
   // ✅ ADDED — Single source of truth for current app version
   // Update this ONLY when releasing a new build
   // Matches versionCode in android/app/build.gradle.kts
-  static const int currentBuildVersion = 14;
+  static const int currentBuildVersion = 16;
 
   // API (placeholder for future use)
   static const String baseUrl = '';
@@ -49,6 +49,13 @@ class StorageKeys {
   static const String dataVersion = 'data_version';
   static const String watchProgress = 'progress_';
   static const String playbackSpeed = 'playback_speed';
+
+  // Announcement — stores the ID of the last shown announcement
+  static const String shownAnnouncementId = 'shown_announcement_id';
+
+  // Force update — highest build number the server has ever forced.
+  // Persisted so the block survives offline launches / failed config fetches.
+  static const String forcedMinBuild = 'forced_min_build';
 }
 
 class AppConstants {
@@ -66,10 +73,8 @@ class AppUrls {
   static String get website => AppConfigService.instance.config.websiteUrl;
 
   // ── Static (rarely changes, not worth admin overhead) ────────────────────
-  static const String playStore =
-      'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub';
-  static const String githubDataBase =
-      'https://dramahub-data.pages.dev';
+  static const String playStore = 'https://dramahubs.stream/download/';
+  static const String githubDataBase = 'https://dramahub-data.pages.dev';
 
   static bool isSafeUrl(String url) {
     final uri = Uri.tryParse(url);

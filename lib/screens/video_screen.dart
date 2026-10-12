@@ -13,14 +13,15 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drama_hub/controllers/video_controller.dart';
+import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/ui_system/colors.dart';
 import 'package:drama_hub/ui_system/spacing.dart';
 import 'package:drama_hub/ui_system/radius.dart';
 import 'package:drama_hub/ui_system/shadows.dart';
 import 'package:drama_hub/ui_system/typography.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/controllers/home_controller.dart';
@@ -47,25 +48,42 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   final RxBool _hlsLoading = false.obs;
 
   late final VideoController controller;
+  late final String _controllerTag;
   int _lastSavedSecond = 0;
+
+  // Embed (YouTube / Rumble / Odysee) state
+  static const String _embedBaseUrl = 'https://dramahubs.stream/';
+  String? _embedHtml;
+  bool _embedIsYoutube = false;
+  bool _embedBlanked = false;
+  Route<void>? _webFullscreenRoute;
 
   @override
   void initState() {
     super.initState();
-    controller = Get.find<VideoController>();
+    // One controller per screen instance — cleaned up in dispose(), after
+    // this screen is gone, so a replacing video screen never shares it.
+    final args = Get.arguments;
+    final ep = args is EpisodeModel
+        ? args
+        : (args is Map ? args['episode'] : null);
+    final episodeId = ep is EpisodeModel ? ep.id : 'unknown';
+    _controllerTag = '${episodeId}_${identityHashCode(this)}';
+    controller = Get.put(VideoController(), tag: _controllerTag);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _autoSaveProgress(force: true);
     _customPlayerController?.removeListener(_onCustomPlayerUpdate);
     _customPlayerController?.pause();
     _customPlayerController?.dispose();
     _customPlayerControllerObs.value = null;
     WakelockPlus.disable();
-    _autoSaveProgress();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    Get.delete<VideoController>(tag: _controllerTag, force: true);
     super.dispose();
   }
 
@@ -73,9 +91,85 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
       _customPlayerController?.pause();
+      _pauseEmbedPlayer();
+    } else if (state == AppLifecycleState.resumed) {
+      _resumeEmbedPlayer();
     }
+  }
+
+  void _pauseEmbedPlayer() {
+    final webController = _webViewController;
+    if (webController == null || _embedHtml == null) return;
+    if (_embedIsYoutube) {
+      webController
+          .runJavaScript(
+            r'''document.querySelector('iframe').contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}','*');''',
+          )
+          .catchError((_) {});
+    } else if (!_embedBlanked) {
+      _embedBlanked = true;
+      webController
+          .runJavaScript("document.querySelector('iframe').src = 'about:blank';")
+          .catchError((_) {});
+    }
+  }
+
+  void _resumeEmbedPlayer() {
+    final webController = _webViewController;
+    final html = _embedHtml;
+    if (webController == null || html == null || !_embedBlanked) return;
+    _embedBlanked = false;
+    webController.loadHtmlString(html, baseUrl: _embedBaseUrl);
+  }
+
+  /// Android-only WebView setup shared by YouTube / Rumble / Odysee embeds:
+  /// allows autoplay and handles HTML5 fullscreen.
+  void _configureAndroidWebView(WebViewController webController) {
+    final platform = webController.platform;
+    if (platform is! AndroidWebViewController) return;
+    platform.setMediaPlaybackRequiresUserGesture(false);
+    platform.setCustomWidgetCallbacks(
+      onShowCustomWidget: _showWebFullscreen,
+      onHideCustomWidget: _hideWebFullscreen,
+    );
+  }
+
+  void _showWebFullscreen(
+    Widget widget,
+    void Function() onCustomWidgetHidden,
+  ) {
+    if (!mounted || _webFullscreenRoute != null) return;
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    final route = MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          // Let the WebView exit fullscreen — it then calls
+          // _hideWebFullscreen, which removes this route.
+          if (!didPop) onCustomWidgetHidden();
+        },
+        child: Scaffold(backgroundColor: Colors.black, body: widget),
+      ),
+    );
+    _webFullscreenRoute = route;
+    Navigator.of(context).push(route);
+  }
+
+  void _hideWebFullscreen() {
+    final route = _webFullscreenRoute;
+    _webFullscreenRoute = null;
+    if (route != null && route.isActive && mounted) {
+      Navigator.of(context).removeRoute(route);
+    }
+    SystemChrome.setPreferredOrientations([]);
   }
 
   Future<void> _openOfflinePlayer(dynamic episode) async {
@@ -144,10 +238,145 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
 
       if (controller.isCustomPlayer.value) {
         if (controller.episode.mp4Url.isEmpty &&
-            controller.episode.streamUrl.isEmpty)
+            controller.episode.streamUrl.isEmpty) {
+          // No source — back to the thumbnail/error state, not a spinner
+          controller.isPlayerInitialized.value = false;
+          _hlsLoading.value = false;
+          controller.errorMessage.value =
+              'Video unavailable. Please check back later.';
+          controller.hasVideoError.value = true;
           return;
+        }
 
         _startHlsPlayer();
+      } else if (controller.episode.isRumblePlayer) {
+        if (controller.episode.rumbleId.isEmpty) return;
+        final rumbleId = controller.episode.rumbleId;
+        final html =
+            '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin:0; padding:0; background:#000; }
+iframe { width:100%; height:100%; border:none; }
+body { width:100vw; height:100vh; overflow:hidden; }
+</style>
+</head>
+<body>
+<iframe
+  src="https://rumble.com/embed/$rumbleId/?autoplay=2&rel=0"
+  allow="autoplay; fullscreen"
+  allowfullscreen
+  sandbox="allow-scripts allow-same-origin allow-presentation">
+</iframe>
+</body>
+</html>
+''';
+        final webController = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(Colors.black)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageStarted: (_) => controller.isVideoLoading.value = true,
+              onPageFinished: (_) => controller.isVideoLoading.value = false,
+              onWebResourceError: (WebResourceError error) {
+                controller.isVideoLoading.value = false;
+                if (error.isForMainFrame == true) {
+                  setState(() {
+                    _webViewController = null;
+                    controller.isPlayerInitialized.value = false;
+                    controller.hasVideoError.value = true;
+                    _isInitializing = false;
+                  });
+                }
+              },
+              onNavigationRequest: (NavigationRequest request) {
+                final url = request.url;
+                if (url == 'about:blank' ||
+                    url.startsWith('https://rumble.com/embed/') ||
+                    url.startsWith('https://dramahubs.stream/')) {
+                  return NavigationDecision.navigate;
+                }
+                return NavigationDecision.prevent;
+              },
+            ),
+          )
+          ..loadHtmlString(html, baseUrl: 'https://dramahubs.stream/');
+        _configureAndroidWebView(webController);
+        _embedHtml = html;
+        _embedIsYoutube = false;
+        _embedBlanked = false;
+        setState(() {
+          _webViewController = webController;
+          controller.isPlayerInitialized.value = true;
+        });
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else if (controller.episode.isOdyseePlayer) {
+        if (controller.episode.odyseeId.isEmpty) return;
+        final encodedId = Uri.encodeComponent(controller.episode.odyseeId);
+        final html =
+            '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin:0; padding:0; background:#000; }
+iframe { width:100%; height:100%; border:none; }
+body { width:100vw; height:100vh; overflow:hidden; }
+</style>
+</head>
+<body>
+<iframe
+  src="https://odysee.com/%24/embed/$encodedId?autoplay=1"
+  allow="autoplay; fullscreen"
+  allowfullscreen
+  sandbox="allow-scripts allow-same-origin allow-presentation">
+</iframe>
+</body>
+</html>
+''';
+        final webController = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(Colors.black)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageStarted: (_) => controller.isVideoLoading.value = true,
+              onPageFinished: (_) => controller.isVideoLoading.value = false,
+              onWebResourceError: (WebResourceError error) {
+                controller.isVideoLoading.value = false;
+                if (error.isForMainFrame == true) {
+                  setState(() {
+                    _webViewController = null;
+                    controller.isPlayerInitialized.value = false;
+                    controller.hasVideoError.value = true;
+                    _isInitializing = false;
+                  });
+                }
+              },
+              onNavigationRequest: (NavigationRequest request) {
+                final url = request.url;
+                if (url == 'about:blank' ||
+                    url.startsWith('https://odysee.com/') ||
+                    url.startsWith('https://dramahubs.stream/')) {
+                  return NavigationDecision.navigate;
+                }
+                return NavigationDecision.prevent;
+              },
+            ),
+          )
+          ..loadHtmlString(html, baseUrl: 'https://dramahubs.stream/');
+        _configureAndroidWebView(webController);
+        _embedHtml = html;
+        _embedIsYoutube = false;
+        _embedBlanked = false;
+        setState(() {
+          _webViewController = webController;
+          controller.isPlayerInitialized.value = true;
+        });
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       } else {
         if (controller.episode.videoId.isEmpty) return;
         final videoId = controller.episode.videoId;
@@ -202,6 +431,10 @@ body { width:100vw; height:100vh; overflow:hidden; }
             ),
           )
           ..loadHtmlString(html, baseUrl: 'https://dramahubs.stream/');
+        _configureAndroidWebView(webController);
+        _embedHtml = html;
+        _embedIsYoutube = true;
+        _embedBlanked = false;
         setState(() {
           _webViewController = webController;
           controller.isPlayerInitialized.value = true;
@@ -212,7 +445,6 @@ body { width:100vw; height:100vh; overflow:hidden; }
       _isInitializing = false;
     }
   }
-
 
   Future<void> _restoreWatchProgress() async {
     try {
@@ -230,12 +462,12 @@ body { width:100vw; height:100vh; overflow:hidden; }
     }
   }
 
-  void _autoSaveProgress() {
+  void _autoSaveProgress({bool force = false}) {
     try {
       final pos = _customPlayerController?.value.position;
       if (pos == null) return;
       final currentSecond = pos.inSeconds;
-      if (currentSecond - _lastSavedSecond < 10) return;
+      if (!force && currentSecond - _lastSavedSecond < 10) return;
       _lastSavedSecond = currentSecond;
       SharedPreferences.getInstance().then((prefs) {
         prefs.setInt('progress_${controller.episode.id}', currentSecond);
@@ -251,6 +483,8 @@ body { width:100vw; height:100vh; overflow:hidden; }
   }
 
   Future<void> _handlePlayerError() async {
+    // Back to thumbnail state so the error text and "tap to retry" show
+    controller.isPlayerInitialized.value = false;
     try {
       _hlsLoading.value = false;
       final connectivity = await Connectivity().checkConnectivity();
@@ -296,6 +530,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
     _hlsLoading.value = true;
     _lastSavedSecond = 0;
     _endedHandled = false;
+    _playerErrorHandled = false;
     _lastKnownSpeed = 1.0;
 
     // ✅ Get signed URL — falls back to raw URL automatically if signing fails
@@ -351,6 +586,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
   }
 
   bool _endedHandled = false;
+  bool _playerErrorHandled = false;
   double _lastKnownSpeed = 1.0;
 
   void _onCustomPlayerUpdate() {
@@ -359,7 +595,11 @@ body { width:100vw; height:100vh; overflow:hidden; }
     final value = c.value;
 
     if (value.hasError) {
-      _handlePlayerError();
+      // Listener ticks repeatedly while in error — handle it only once
+      if (!_playerErrorHandled) {
+        _playerErrorHandled = true;
+        _handlePlayerError();
+      }
       return;
     }
 
@@ -405,7 +645,7 @@ body { width:100vw; height:100vh; overflow:hidden; }
         '🎬 Watch ${episode.title} on Drama Hub!\n'
         'Episode ${episode.episodeNumber} is now available.\n\n'
         '📲 Download the App:\n'
-        'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub\n\n'
+        'https://dramahubs.stream/download/\n\n'
         '📢 Join our Telegram for latest episodes:\n'
         'https://t.me/araftahindisub';
     await SharePlus.instance.share(
@@ -532,9 +772,16 @@ class _VideoContainer extends StatelessWidget {
             final videoUrl = isCustom
                 ? controller.streamUrl.value
                 : controller.episode.videoUrl;
+            final hasEmbedSource = controller.episode.isRumblePlayer
+                ? controller.episode.rumbleId.isNotEmpty
+                : controller.episode.isOdyseePlayer
+                ? controller.episode.odyseeId.isNotEmpty
+                : false;
 
             // State 1: No video
-            if (videoUrl.isEmpty && !controller.isPlayerInitialized.value) {
+            if (videoUrl.isEmpty &&
+                !hasEmbedSource &&
+                !controller.isPlayerInitialized.value) {
               return const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -797,7 +1044,121 @@ class _DownloadSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ YouTube episodes — Snaptube download flow (completely untouched)
+    // ✅ Rumble episodes — VidBlaze download
+    if (controller.episode.isRumblePlayer) {
+      if (controller.episode.rumbleId.isEmpty) return const SizedBox.shrink();
+      return Obx(
+        () => Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondaryDark,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+          ),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Download Episode', style: AppTypography.title),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: controller.isDownloadLoading.value
+                    ? null
+                    : controller.goToRumbleDownload,
+                icon: controller.isDownloadLoading.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white70,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(
+                  controller.isDownloadLoading.value
+                      ? 'Loading...'
+                      : 'Free Download',
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.lg,
+                    horizontal: AppSpacing.lg,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Download opens in VidBlaze app.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.softGrey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ Odysee episodes — VidBlaze download
+    if (controller.episode.isOdyseePlayer) {
+      if (controller.episode.odyseeId.isEmpty) return const SizedBox.shrink();
+      return Obx(
+        () => Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondaryDark,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+          ),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Download Episode', style: AppTypography.title),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: controller.isDownloadLoading.value
+                    ? null
+                    : controller.goToOdyseeDownload,
+                icon: controller.isDownloadLoading.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white70,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(
+                  controller.isDownloadLoading.value
+                      ? 'Loading...'
+                      : 'Free Download',
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.lg,
+                    horizontal: AppSpacing.lg,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Download opens in VidBlaze app.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.softGrey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ YouTube episodes — VidBlaze download flow (completely untouched)
     if (!controller.isCustomPlayer.value) {
       if (controller.episode.videoId.isEmpty) return const SizedBox.shrink();
       return Obx(
@@ -1051,7 +1412,6 @@ class _DownloadSection extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────
 // EPISODE LIST SECTION
 // ─────────────────────────────────────────────────────────────────
@@ -1135,14 +1495,16 @@ class _EpisodeListSectionState extends State<_EpisodeListSection> {
                         final dramaBanner = widget.controller.dramaBanner;
 
                         void navigate() {
-                          Get.delete<VideoController>(force: true);
-                          Get.offAndToNamed(
+                          // Each VideoScreen owns a tagged controller that is
+                          // deleted in its own dispose(), after it is gone.
+                          Get.offNamed(
                             AppRoutes.video,
                             arguments: {
                               'episode': targetEp,
                               'dramaTitle': dramaTitle,
                               'dramaBanner': dramaBanner,
                             },
+                            preventDuplicates: false,
                           );
                         }
 

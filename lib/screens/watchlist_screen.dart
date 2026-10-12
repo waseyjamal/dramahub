@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -117,7 +118,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.lg,
                         ),
-                        cacheExtent: 500,
+                        scrollCacheExtent: const ScrollCacheExtent.pixels(500),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,

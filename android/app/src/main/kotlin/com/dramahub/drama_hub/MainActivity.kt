@@ -9,33 +9,13 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.dramahub.drama_hub/security"
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // ── Security channel (untouched) ──
+        // ── VidBlaze channel ──
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            CHANNEL
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "enableSecureMode" -> {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    result.success(null)
-                }
-                "disableSecureMode" -> {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    result.success(null)
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // ── VidSwift channel ──
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            "com.dramahub.drama_hub/vidswift"
+            "com.dramahub.drama_hub/vidblaze"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "isInstalled" -> {
@@ -55,7 +35,7 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(installed)
                 }
-                "shareToVidswift" -> {
+                "shareToVidblaze" -> {
                     val url = call.argument<String>("url") ?: ""
                     try {
                         val intent = Intent(Intent.ACTION_SEND).apply {

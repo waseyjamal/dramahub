@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:drama_hub/models/episode_model.dart';
 import 'package:drama_hub/services/ad_service.dart';
 import 'package:drama_hub/services/download_service.dart';
-import 'package:drama_hub/services/video_service.dart';
 import 'package:drama_hub/services/signing_service.dart';
 import 'package:drama_hub/routes/app_routes.dart';
 import 'package:drama_hub/utils/app_snackbar.dart';
@@ -16,7 +15,6 @@ import 'package:drama_hub/widgets/vidswift_install_sheet.dart';
 /// Controller for Video screen
 class VideoController extends GetxController {
   final AdService _adService = Get.find<AdService>();
-  final VideoService _videoService = Get.find<VideoService>();
 
   late EpisodeModel episode;
 
@@ -66,24 +64,18 @@ class VideoController extends GetxController {
       Future.microtask(() => Get.back());
       return;
     }
-    _videoService.enableSecureMode().catchError((_) {});
     _loadExtraData();
-  }
-
-  @override
-  void onClose() {
-    _videoService.disableSecureMode().catchError((_) {});
-    super.onClose();
   }
 
   /// Resolves signed stream URL — called by video_screen before player init.
   /// Returns signed URL if signing enabled, raw URL as fallback.
   Future<String> resolveStreamUrl() async {
     final rawUrl = episode.usesMp4 ? episode.mp4Url : episode.streamUrl;
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint(
         'resolveStreamUrl: dramaId=${episode.dramaId} ep=${episode.episodeNumber} mp4Url=${episode.mp4Url} streamUrl=${episode.streamUrl} usesMp4=${episode.usesMp4}',
       );
+    }
     if (rawUrl.isEmpty) return rawUrl;
 
     if (!episode.isCustomPlayer) return rawUrl;
@@ -166,7 +158,7 @@ class VideoController extends GetxController {
     );
   }
 
-  /// Starts download with signed URL
+  /// Starts in-app download with signed URL (custom/MP4 episodes only)
   Future<void> goToDownload() async {
     if (isDownloadLoading.value) return;
 
@@ -181,7 +173,6 @@ class VideoController extends GetxController {
     try {
       isDownloadLoading.value = true;
 
-      // Get signed download URL before starting
       final signedUrl = await SigningService.instance.getDownloadUrl(
         dramaId: episode.dramaId,
         episodeNumber: episode.episodeNumber,
@@ -217,8 +208,7 @@ class VideoController extends GetxController {
     }
   }
 
-  /// Shares YouTube episode URL directly to VidSwift for downloading.
-  /// Shows an install prompt if VidSwift is not installed.
+  /// Shares YouTube URL to VidBlaze for downloading.
   Future<void> goToYoutubeDownload() async {
     if (isDownloadLoading.value) return;
 
@@ -232,24 +222,78 @@ class VideoController extends GetxController {
 
     try {
       isDownloadLoading.value = true;
-
       await _adService.showRewardedForDownload(
-        onRewarded: () => _handleVidswiftShare(),
-        onNotAvailable: () => _handleVidswiftShare(),
+        onRewarded: () => _handleVidblazShare(episode.watchUrl),
+        onNotAvailable: () => _handleVidblazShare(episode.watchUrl),
       );
     } catch (e) {
       if (kDebugMode) debugPrint('YouTube download error: $e');
-      _handleVidswiftShare();
+      _handleVidblazShare(episode.watchUrl);
     } finally {
       isDownloadLoading.value = false;
     }
   }
 
-  static const _vidswiftChannel = MethodChannel('com.dramahub.drama_hub/vidswift');
+  /// Shares Rumble URL to VidBlaze for downloading.
+  Future<void> goToRumbleDownload() async {
+    if (isDownloadLoading.value) return;
 
-  Future<void> _handleVidswiftShare() async {
+    if (episode.rumbleId.isEmpty) {
+      AppSnackbar.error(
+        'Download Unavailable',
+        'Download link for this episode is not available yet.',
+      );
+      return;
+    }
+
     try {
-      final installed = await _vidswiftChannel.invokeMethod<bool>('isInstalled') ?? false;
+      isDownloadLoading.value = true;
+      final url = 'https://rumble.com/embed/${episode.rumbleId}/';
+      await _adService.showRewardedForDownload(
+        onRewarded: () => _handleVidblazShare(url),
+        onNotAvailable: () => _handleVidblazShare(url),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('Rumble download error: $e');
+    } finally {
+      isDownloadLoading.value = false;
+    }
+  }
+
+  /// Shares Odysee URL to VidBlaze for downloading.
+  Future<void> goToOdyseeDownload() async {
+    if (isDownloadLoading.value) return;
+
+    if (episode.odyseeId.isEmpty) {
+      AppSnackbar.error(
+        'Download Unavailable',
+        'Download link for this episode is not available yet.',
+      );
+      return;
+    }
+
+    try {
+      isDownloadLoading.value = true;
+      final url = 'https://odysee.com/${episode.odyseeId}';
+      await _adService.showRewardedForDownload(
+        onRewarded: () => _handleVidblazShare(url),
+        onNotAvailable: () => _handleVidblazShare(url),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('Odysee download error: $e');
+    } finally {
+      isDownloadLoading.value = false;
+    }
+  }
+
+  static const _vidswiftChannel = MethodChannel(
+    'com.dramahub.drama_hub/vidblaze',
+  );
+
+  Future<void> _handleVidblazShare(String url) async {
+    try {
+      final installed =
+          await _vidswiftChannel.invokeMethod<bool>('isInstalled') ?? false;
       if (!installed) {
         Get.bottomSheet(
           const VidswiftInstallSheet(),
@@ -258,10 +302,11 @@ class VideoController extends GetxController {
         );
         return;
       }
-      final launched = await _vidswiftChannel.invokeMethod<bool>(
-        'shareToVidswift',
-        {'url': episode.watchUrl},
-      ) ?? false;
+      final launched =
+          await _vidswiftChannel.invokeMethod<bool>('shareToVidblaze', {
+            'url': url,
+          }) ??
+          false;
       if (!launched) {
         Get.bottomSheet(
           const VidswiftInstallSheet(),
@@ -270,7 +315,7 @@ class VideoController extends GetxController {
         );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('Vidswift channel error: $e');
+      if (kDebugMode) debugPrint('Vidblaze channel error: $e');
       Get.bottomSheet(
         const VidswiftInstallSheet(),
         isScrollControlled: true,

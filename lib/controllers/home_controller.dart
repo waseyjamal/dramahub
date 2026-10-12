@@ -14,6 +14,9 @@ import 'package:drama_hub/utils/constants.dart';
 import 'package:drama_hub/config/app_config_service.dart';
 import 'dart:async';
 import 'package:drama_hub/controllers/episodes_controller.dart';
+import 'package:drama_hub/models/announcement_model.dart';
+import 'package:drama_hub/services/force_update_service.dart';
+import 'package:drama_hub/widgets/announcement_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeController extends GetxController {
@@ -117,8 +120,8 @@ class HomeController extends GetxController {
       // isResume=true bypasses 5-min throttle so user sees new content
       // immediately when they return to the app after you upload something.
       // Normal navigation respects the throttle to save requests.
+      // Force update is evaluated inside reloadConfig (ForceUpdateService)
       await AppConfigService.instance.reloadConfig(forceResume: isResume);
-      _checkAndShowUpdateDialog();
 
       final prefs = await SharedPreferences.getInstance();
 
@@ -219,6 +222,8 @@ class HomeController extends GetxController {
     // Requires latest_episode_number + latest_episode_date in dramas.json.
     // When you upload a new episode, update those two fields + bump data_version.
     _buildLatestEpisodesFromDramas(regular);
+
+    _maybeShowAnnouncement();
   }
 
   /// Builds the "Latest Episodes" home section from drama model data.
@@ -394,155 +399,80 @@ class HomeController extends GetxController {
     }
   }
 
-  bool _updateDialogShown = false;
+  bool _announcementShown = false;
 
-  void _checkAndShowUpdateDialog() {
-    if (_updateDialogShown) return;
-    final config = AppConfigService.instance.config;
-    if (config.latestVersion <= Constants.currentBuildVersion) return;
-    if (!config.forceUpdate) return;
-    _updateDialogShown = true;
-    Get.dialog(_buildUpdateDialog(force: true), barrierDismissible: false);
+  // ── Announcement ──────────────────────────────────────────────────────────
+
+  /// Schedules the announcement check after the home screen has rendered.
+  /// Guard prevents showing more than once per session.
+  void _maybeShowAnnouncement() {
+    if (_announcementShown) return;
+    _announcementShown = true;
+    Future.delayed(
+      const Duration(milliseconds: 900),
+      _checkAndShowAnnouncement,
+    );
   }
 
-  Widget _buildUpdateDialog({required bool force}) {
-    final fallback = AppConfigService.instance.config.fallbackUpdate;
+  Future<void> _checkAndShowAnnouncement() async {
+    try {
+      // Never stack an announcement under the force-update blocker
+      if (ForceUpdateService.instance.isBlocked.value) return;
+      final config = AppConfigService.instance.config;
+      final ann = config.announcement;
+      if (ann == null) return;
+      if (!ann.enabled) return;
+      if (ann.id.isEmpty) return;
 
-    return Dialog(
-      backgroundColor: const Color(0xFF1A1A2E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              force ? Icons.system_update_rounded : Icons.new_releases_rounded,
-              color: force ? Colors.redAccent : Colors.amber,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              force ? 'Update Required' : 'Update Available',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              force
-                  ? 'A new version of Drama Hub is available. Please update to continue.'
-                  : 'A new version of Drama Hub is available with new features and improvements.',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            if (!force)
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text(
-                  'Later',
-                  style: TextStyle(color: Colors.white54),
-                ),
-              ),
-            if (fallback.playstoreEnabled || !fallback.hasAtLeastOneOption)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final url = fallback.playstoreUrl;
-                    if (!AppUrls.isSafeUrl(url)) return;
-                    await launchUrl(
-                      Uri.parse(url),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text(
-                    'Update on Play Store',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            if (fallback.telegramEnabled) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    if (!AppUrls.isSafeUrl(fallback.telegramUrl)) return;
-                    await launchUrl(
-                      Uri.parse(fallback.telegramUrl),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.send_rounded,
-                    color: Colors.white70,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Get Update on Telegram',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: const BorderSide(color: Colors.white24),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            if (fallback.websiteEnabled) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    if (!AppUrls.isSafeUrl(fallback.websiteUrl)) return;
-                    await launchUrl(
-                      Uri.parse(fallback.websiteUrl),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.language_rounded,
-                    color: Colors.white70,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Download from Website',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: const BorderSide(color: Colors.white24),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
+      if (ann.showOnce) {
+        final prefs = await SharedPreferences.getInstance();
+        final shownId = prefs.getString(StorageKeys.shownAnnouncementId) ?? '';
+        if (shownId == ann.id) return;
+        // Mark as shown immediately so a crash/kill after dialog open
+        // doesn't re-show it on next launch.
+        await prefs.setString(StorageKeys.shownAnnouncementId, ann.id);
+      }
+
+      if (Get.context == null) return;
+
+      Get.dialog(
+        AnnouncementDialog(
+          announcement: ann,
+          onAction: () => _handleAnnouncementAction(ann),
         ),
-      ),
-    );
+        barrierDismissible: true,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('Announcement error: $e');
+    }
+  }
+
+  void _handleAnnouncementAction(AnnouncementModel ann) {
+    // General type — open external URL (Telegram, website, etc.)
+    if (ann.type == AnnouncementType.general) {
+      if (ann.hasActionUrl && AppUrls.isSafeUrl(ann.actionUrl!)) {
+        launchUrl(
+          Uri.parse(ann.actionUrl!),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      return;
+    }
+
+    // Drama / episode types — in-app navigation only
+    if (!ann.navigatesToDrama) return;
+
+    final drama = allDramas.firstWhereOrNull((d) => d.id == ann.actionDramaId);
+    if (drama == null) return;
+
+    if (ann.actionEpisodeNumber != null) {
+      Get.toNamed(
+        AppRoutes.episodes,
+        arguments: {'drama': drama, 'autoPlayEpisode': ann.actionEpisodeNumber},
+      )?.then((_) => loadLastWatched());
+    } else {
+      goToEpisodes(drama);
+    }
   }
 
   @override

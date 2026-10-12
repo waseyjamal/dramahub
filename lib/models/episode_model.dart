@@ -15,6 +15,8 @@ class EpisodeModel {
   final bool isPremium;
   final String playerType;
   final String streamUrl;
+  final String rumbleId;
+  final String odyseeId;
 
   // ✅ NEW — direct MP4 URL for streaming and in-app download
   final String mp4Url;
@@ -34,6 +36,8 @@ class EpisodeModel {
     this.isPremium = false,
     this.playerType = 'youtube',
     this.streamUrl = '',
+    this.rumbleId = '',
+    this.odyseeId = '',
     this.mp4Url = '',
   }) : videoUrl = videoId.isNotEmpty
            ? 'https://www.youtube.com/embed/$videoId?autoplay=0&rel=0&modestbranding=1&playsinline=1'
@@ -46,6 +50,9 @@ class EpisodeModel {
   bool get isUpcoming => DateTime.now().isBefore(releaseDate);
   bool get isReleased => !isUpcoming;
   bool get isCustomPlayer => playerType == 'custom';
+  bool get isRumblePlayer => playerType == 'rumble';
+  bool get isOdyseePlayer => playerType == 'odysee';
+  bool get isEmbedPlayer => isRumblePlayer || isOdyseePlayer;
 
   // ✅ True when mp4Url is available — controls download button visibility
   bool get hasDownload => mp4Url.isNotEmpty;
@@ -84,6 +91,8 @@ class EpisodeModel {
       playerType: json['playerType'] ?? 'youtube',
       streamUrl: json['streamUrl'] ?? '',
       mp4Url: json['mp4Url'] ?? '',
+      rumbleId: json['rumbleId'] ?? '',
+      odyseeId: json['odyseeId'] ?? '',
     );
   }
 
@@ -104,6 +113,8 @@ class EpisodeModel {
       'playerType': playerType,
       'streamUrl': streamUrl,
       'mp4Url': mp4Url,
+      'rumbleId': rumbleId,
+      'odyseeId': odyseeId,
     };
   }
 }

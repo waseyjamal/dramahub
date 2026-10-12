@@ -5,6 +5,8 @@ import 'ui_system/colors.dart';
 import 'bindings/initial_binding.dart';
 import 'routes/app_routes.dart';
 import 'routes/app_pages.dart';
+import 'services/force_update_service.dart';
+import 'widgets/force_update_blocker.dart';
 
 /// Main app widget using GetX
 class DramaHubApp extends StatelessWidget {
@@ -23,12 +25,22 @@ class DramaHubApp extends StatelessWidget {
       transitionDuration: const Duration(milliseconds: 300),
       // Wrap entire app with global background effect
       builder: (context, child) {
-        return Container(
+        final app = Container(
           decoration: const BoxDecoration(
             color: AppColors.darkBackground,
             gradient: AppColors.redGlowGradient,
           ),
           child: child,
+        );
+        // Force update blocker sits above the Navigator — no route can cover it
+        return Obx(
+          () => Stack(
+            children: [
+              app,
+              if (ForceUpdateService.instance.isBlocked.value)
+                const Positioned.fill(child: ForceUpdateBlocker()),
+            ],
+          ),
         );
       },
     );

@@ -518,9 +518,7 @@ class _CustomVideoPlayerState extends State<CustomVideoPlayer>
     // Returned from fullscreen
     setState(() => _isFullscreen = false);
     widget.onFullscreenChanged?.call(false);
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    await SystemChrome.setPreferredOrientations([]);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
@@ -584,7 +582,7 @@ class _CustomVideoPlayerState extends State<CustomVideoPlayer>
     _rightSeekController.dispose();
     widget.controller.removeListener(_onControllerUpdate);
     if (_isFullscreen) {
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      SystemChrome.setPreferredOrientations([]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _volumeButtonSubscription?.cancel();

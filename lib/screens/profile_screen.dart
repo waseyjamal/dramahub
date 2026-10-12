@@ -103,15 +103,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _TileGroup(
                   tiles: [
                     _TileData(
-                      icon: Icons.star_rounded,
-                      iconColor: AppColors.goldAccent,
-                      title: 'Rate the App',
-                      subtitle: 'Enjoying Drama Hub? Rate us!',
-                      onTap: () => _launch(
-                        'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
-                      ),
-                    ),
-                    _TileData(
                       icon: Icons.bug_report_rounded,
                       iconColor: Colors.orangeAccent,
                       title: 'Report a Problem',

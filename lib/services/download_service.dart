@@ -216,7 +216,8 @@ class DownloadService extends GetxService {
       // ✅ Create download task
       final task = DownloadTask(
         taskId: episode.id,
-        url: mp4Url,
+        // Normalised so spaces in CDN paths are percent-encoded
+        url: Uri.parse(mp4Url).toString(),
         filename: '${episode.id}.mp4',
         directory: 'downloads',
         baseDirectory: BaseDirectory.applicationSupport,

@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drama_hub/controllers/history_controller.dart';
 import 'package:drama_hub/utils/constants.dart';
 import 'dart:async';
-import 'package:drama_hub/controllers/video_controller.dart';
 
 class EpisodesController extends GetxController {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
@@ -25,6 +24,7 @@ class EpisodesController extends GetxController {
   final RxBool hasError = false.obs;
   final RxString errorMessage = ''.obs;
   Timer? _searchDebounce;
+  Timer? _openInterstitialTimer;
   bool _isOpeningEpisode = false;
   late DramaModel selectedDrama;
   bool skipInterstitialOnOpen = false;
@@ -48,9 +48,7 @@ class EpisodesController extends GetxController {
       selectedDrama = Get.arguments as DramaModel;
       skipInterstitialOnOpen = false;
       _initScreen();
-      Future.delayed(const Duration(seconds: 1), () {
-        _adService.showInterstitialForScreen('episodes_screen');
-      });
+      _scheduleOpenInterstitial();
     } else if (Get.arguments != null && Get.arguments is Map) {
       final args = Get.arguments as Map;
       final drama = args['drama'];
@@ -77,9 +75,7 @@ class EpisodesController extends GetxController {
       });
 
       if (!skipInterstitialOnOpen && autoPlayEp == null) {
-        Future.delayed(const Duration(seconds: 1), () {
-          _adService.showInterstitialForScreen('episodes_screen');
-        });
+        _scheduleOpenInterstitial();
       }
     } else {
       if (kDebugMode) {
@@ -87,6 +83,15 @@ class EpisodesController extends GetxController {
       }
       Future.microtask(() => Get.back());
     }
+  }
+
+  // Delayed so the screen settles first; cancelled if the user opens an
+  // episode before it fires, so it never lands on top of the video screen.
+  void _scheduleOpenInterstitial() {
+    _openInterstitialTimer?.cancel();
+    _openInterstitialTimer = Timer(const Duration(seconds: 1), () {
+      _adService.showInterstitialForScreen('episodes_screen');
+    });
   }
 
   Future<void> _initScreen() async {
@@ -216,7 +221,7 @@ class EpisodesController extends GetxController {
         'episode_title': episode.title,
       },
     );
-    Get.delete<VideoController>(force: true);
+    _openInterstitialTimer?.cancel();
     Get.toNamed(
       AppRoutes.video,
       arguments: {
@@ -247,6 +252,7 @@ class EpisodesController extends GetxController {
   @override
   void onClose() {
     _searchDebounce?.cancel();
+    _openInterstitialTimer?.cancel();
     _countdownTimer?.cancel();
     super.onClose();
   }

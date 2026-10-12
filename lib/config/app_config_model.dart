@@ -1,3 +1,5 @@
+import 'package:drama_hub/models/announcement_model.dart';
+
 /// Model for app configuration
 class AppConfigModel {
   final String appName;
@@ -22,6 +24,9 @@ class AppConfigModel {
   final String signingApiFallback;
   final bool useSignedUrls;
 
+  // ── Announcement (admin-controlled popup) ──
+  final AnnouncementModel? announcement;
+
   AppConfigModel({
     required this.appName,
     required this.telegramUrl,
@@ -42,6 +47,7 @@ class AppConfigModel {
     required this.signingApi,
     required this.signingApiFallback,
     required this.useSignedUrls,
+    this.announcement,
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -81,6 +87,12 @@ class AppConfigModel {
       signingApiFallback:
           (json['signing_api_fallback'] as String?)?.trim() ?? '',
       useSignedUrls: json['use_signed_urls'] ?? false,
+      // ── Announcement — null if key absent or not a map ──
+      announcement: json['announcement'] is Map<String, dynamic>
+          ? AnnouncementModel.fromJson(
+              json['announcement'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -105,52 +117,40 @@ class AppConfigModel {
       signingApi: '',
       signingApiFallback: '',
       useSignedUrls: false,
+      announcement: null,
     );
   }
 }
 
 /// Fallback update delivery config — controlled remotely via admin panel
 class FallbackUpdateConfig {
-  final bool playstoreEnabled;
-  final String playstoreUrl;
   final bool telegramEnabled;
   final String telegramUrl;
   final bool websiteEnabled;
   final String websiteUrl;
 
   FallbackUpdateConfig({
-    required this.playstoreEnabled,
-    required this.playstoreUrl,
     required this.telegramEnabled,
     required this.telegramUrl,
     required this.websiteEnabled,
     required this.websiteUrl,
   });
 
-  bool get hasAtLeastOneOption =>
-      playstoreEnabled || telegramEnabled || websiteEnabled;
+  bool get hasAtLeastOneOption => telegramEnabled || websiteEnabled;
 
   factory FallbackUpdateConfig.fromJson(Map<String, dynamic> json) {
     return FallbackUpdateConfig(
-      playstoreEnabled: json['playstore_enabled'] ?? true,
-      playstoreUrl:
-          json['playstore_url'] ??
-          'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
       telegramEnabled: json['telegram_enabled'] ?? false,
       telegramUrl: json['telegram_url'] ?? 'https://t.me/araftahindisub',
-      websiteEnabled: json['website_enabled'] ?? false,
-      websiteUrl:
-          json['website_url'] ?? 'https://dramahubs.stream/p/app-download.html',
+      websiteEnabled: json['website_enabled'] ?? true,
+      websiteUrl: json['website_url'] ?? 'https://dramahubs.stream/download/',
     );
   }
 
   factory FallbackUpdateConfig.defaults() => FallbackUpdateConfig(
-    playstoreEnabled: true,
-    playstoreUrl:
-        'https://play.google.com/store/apps/details?id=com.dramahub.drama_hub',
     telegramEnabled: false,
     telegramUrl: 'https://t.me/araftahindisub',
-    websiteEnabled: false,
-    websiteUrl: 'https://dramahubs.stream/p/app-download.html',
+    websiteEnabled: true,
+    websiteUrl: 'https://dramahubs.stream/download/',
   );
 }

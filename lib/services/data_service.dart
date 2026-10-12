@@ -39,12 +39,12 @@ class DataService {
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        return compute(_parseDramas, response.body);
+        return await compute(_parseDramas, response.body);
       } else {
         if (kDebugMode) {
           debugPrint('Failed to load remote dramas: ${response.statusCode}');
         }
-        return _loadLocalDramas();
+        return await _loadLocalDramas();
       }
     } catch (e) {
       if (kDebugMode) {
@@ -59,7 +59,7 @@ class DataService {
       final String jsonString = await rootBundle.loadString(
         _localDramasFallback,
       );
-      return compute(_parseDramas, jsonString);
+      return await compute(_parseDramas, jsonString);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error loading local dramas: $e');
@@ -79,7 +79,9 @@ class DataService {
     if (cached != null) return cached;
 
     try {
-      final String remoteUrl = '$_baseUrl/episodes/$dramaId.json';
+      // Encoded so IDs with spaces or special characters fetch correctly
+      final String remoteUrl =
+          '$_baseUrl/episodes/${Uri.encodeComponent(dramaId)}.json';
       final response = await http
           .get(Uri.parse(remoteUrl))
           .timeout(const Duration(seconds: 8));
@@ -88,13 +90,19 @@ class DataService {
         final episodes = await compute(_parseEpisodes, response.body);
         await _cacheEpisodes(dramaId, response.body);
         return episodes;
+      } else if (response.statusCode == 404) {
+        // Drama listed but has no episode file yet — show the empty state
+        if (kDebugMode) {
+          debugPrint('No episode file for $dramaId (404)');
+        }
+        return [];
       } else {
         if (kDebugMode) {
           debugPrint(
             'Failed to load remote episodes for $dramaId: ${response.statusCode}',
           );
         }
-        return _loadLocalEpisodes(dramaId);
+        return await _loadLocalEpisodes(dramaId);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -147,7 +155,7 @@ class DataService {
         '${StorageKeys.episodesCache}$dramaId',
       );
       if (cachedJson == null) return null;
-      return compute(_parseEpisodes, cachedJson);
+      return await compute(_parseEpisodes, cachedJson);
     } catch (_) {
       return null;
     }
@@ -173,7 +181,7 @@ class DataService {
       final String jsonString = await rootBundle.loadString(
         'assets/data/episodes/$dramaId.json',
       );
-      return compute(_parseEpisodes, jsonString);
+      return await compute(_parseEpisodes, jsonString);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error loading local episodes for $dramaId: $e');

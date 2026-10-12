@@ -56,15 +56,17 @@ class SigningService {
 
     // If signing is disabled by admin — use raw URL immediately
     if (!config.useSignedUrls) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('SigningService: signing disabled — using raw URL');
+      }
       return rawUrl;
     }
 
     // If no signing API configured — use raw URL
     if (config.signingApi.isEmpty) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('SigningService: no signing API configured — using raw URL');
+      }
       return rawUrl;
     }
 
@@ -80,8 +82,9 @@ class SigningService {
       return primaryResult;
     }
 
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint('SigningService: primary failed — trying fallback');
+    }
 
     // Try fallback signing API
     if (config.signingApiFallback.isNotEmpty) {
@@ -98,10 +101,11 @@ class SigningService {
     }
 
     // Both failed — use raw URL so app never breaks
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint(
         'SigningService: both APIs failed — using raw URL as emergency fallback',
       );
+    }
     return rawUrl;
   }
 

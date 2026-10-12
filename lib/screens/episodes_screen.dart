@@ -166,7 +166,7 @@ class EpisodesScreen extends GetView<EpisodesController> {
                         const Text('📺', style: TextStyle(fontSize: 64)),
                         const SizedBox(height: 16),
                         const Text(
-                          'No Episodes Found',
+                          'No Episodes Available',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,

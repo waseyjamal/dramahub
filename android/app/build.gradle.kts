@@ -42,8 +42,8 @@ android {
         applicationId = "com.dramahub.drama_hub"
         minSdk = 24
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.3.1"
+        versionCode = 16
+        versionName = "1.3.3"
         multiDexEnabled = true
     }
 
@@ -69,14 +69,14 @@ dependencies {
     implementation("com.android.installreferrer:installreferrer:2.2")
 
     // ── LevelPlay mediation adapters ──────────────────────────────────────────────
-    implementation("com.unity3d.ads-mediation:mediation-sdk:9.6.0")
-    implementation("com.unity3d.ads-mediation:unityads-adapter:5.12.0")
-    implementation("com.unity3d.ads:unity-ads:4.18.1")
-    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.9.0")
-    implementation("com.chartboost:chartboost-sdk:9.12.1")
+    implementation("com.unity3d.ads-mediation:mediation-sdk:9.4.0")
+    implementation("com.unity3d.ads-mediation:unityads-adapter:5.13.0")
+    implementation("com.unity3d.ads:unity-ads:4.20.1")
+    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.10.0")
+    implementation("com.chartboost:chartboost-sdk:9.14.1")
     implementation("com.unity3d.ads-mediation:inmobi-adapter:5.9.0")
     implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.4.1")
-    implementation("com.unity3d.ads-mediation:vungle-adapter:5.14.0")
+    implementation("com.unity3d.ads-mediation:vungle-adapter:5.15.0")
     implementation("com.vungle:vungle-ads:7.7.8")
     // ─────────────────────────────────────────────────────────────────────────────
 }
