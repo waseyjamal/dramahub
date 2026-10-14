@@ -21,6 +21,7 @@ import 'package:drama_hub/screens/latest_episodes_screen.dart';
 import 'package:drama_hub/screens/new_dramas_screen.dart';
 import 'package:drama_hub/screens/category_screen.dart';
 import 'package:drama_hub/controllers/upcoming_controller.dart';
+import 'package:drama_hub/features/shorts/shorts_routes.dart';
 
 /// Application pages configuration
 ///
@@ -95,5 +96,6 @@ class AppPages {
       name: AppRoutes.category,
       page: () => const CategoryScreen(),
     ),
+    ...ShortsRoutes.pages,
   ];
 }

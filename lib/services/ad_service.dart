@@ -14,6 +14,9 @@ class AdService extends GetxService {
   static const String _appKey = '25d9acedd';
   static const String _interstitialAdUnitId = '9376lcqwbkl99r6v';
   static const String _rewardedAdUnitId = '8ask2oenzoqbxo09';
+  // ── Shorts Ad Units (Separate from main app) ──────────────────────────────
+  static const String _shortsInterstitialAdUnitId = 'drsrjo3zrab63yn4';
+  static const String _shortsRewardedAdUnitId = 'au75oul4efg0l8x8';
   static const List<int> _retryBackoffSeconds = [10, 30, 60, 120];
   // After the backoff list is used up, keep retrying slowly all session
   static const int _slowRetrySeconds = 300;
@@ -52,12 +55,24 @@ class AdService extends GetxService {
   // ── LevelPlay ad objects (created once, reused for every load) ────────────
   LevelPlayInterstitialAd? _interstitialAd;
   LevelPlayRewardedAd? _rewardedAd;
+  LevelPlayInterstitialAd? _shortsInterstitialAd;
+  LevelPlayRewardedAd? _shortsRewardedAd;
+
+  // ── Shorts show and load guards ───────────────────────────────────────────
+  bool _shortsInterstitialShowing = false;
+  bool _shortsRewardedShowing = false;
+  bool _shortsInterstitialLoading = false;
+  bool _shortsRewardedLoading = false;
 
   // ── Retry state ───────────────────────────────────────────────────────────
   Timer? _interstitialRetryTimer;
   Timer? _rewardedRetryTimer;
   int _interstitialRetryCount = 0;
   int _rewardedRetryCount = 0;
+  Timer? _shortsInterstitialRetryTimer;
+  Timer? _shortsRewardedRetryTimer;
+  int _shortsInterstitialRetryCount = 0;
+  int _shortsRewardedRetryCount = 0;
 
   AdConfigService get _cfg => AdConfigService.instance;
 
@@ -76,6 +91,12 @@ class AdService extends GetxService {
     if (!interstitialReady) _loadInterstitial();
     final rewardedReady = await _rewardedAd?.isAdReady() ?? false;
     if (!rewardedReady) _loadRewarded();
+    final shortsInterstitialReady =
+        await _shortsInterstitialAd?.isAdReady() ?? false;
+    if (!shortsInterstitialReady) _loadShortsInterstitial();
+    final shortsRewardedReady =
+        await _shortsRewardedAd?.isAdReady() ?? false;
+    if (!shortsRewardedReady) _loadShortsRewarded();
   }
 
   // ── LevelPlay init ────────────────────────────────────────────────────────
@@ -90,6 +111,8 @@ class AdService extends GetxService {
             if (kDebugMode) debugPrint('✅ LevelPlay initialized');
             _loadInterstitial();
             _loadRewarded();
+            _loadShortsInterstitial();
+            _loadShortsRewarded();
           },
           onFailed: (error) {
             if (kDebugMode) debugPrint('❌ LevelPlay init failed: $error');
@@ -182,6 +205,94 @@ class AdService extends GetxService {
     }
     _rewardedRetryTimer?.cancel();
     _rewardedRetryTimer = Timer(Duration(seconds: delay), _loadRewarded);
+  }
+
+  // ── Load Shorts Interstitial ──────────────────────────────────────────────
+  void _loadShortsInterstitial() {
+    if (!_initialized) return;
+    if (!_cfg.config.adNetworks.levelplayEnabled) return;
+    if (_shortsInterstitialShowing || _shortsInterstitialLoading) return;
+    _shortsInterstitialRetryTimer?.cancel();
+    _shortsInterstitialRetryTimer = null;
+    final ad = _shortsInterstitialAd ??= LevelPlayInterstitialAd(
+      adUnitId: _shortsInterstitialAdUnitId,
+    );
+    _shortsInterstitialLoading = true;
+    ad.setListener(_InterstitialListener(
+      onLoaded: () {
+        _shortsInterstitialLoading = false;
+        _shortsInterstitialRetryCount = 0;
+        if (kDebugMode) debugPrint('✅ LevelPlay Shorts Interstitial loaded');
+        _logAnalytics('shorts_interstitial_load_success');
+      },
+      onFailed: () {
+        _shortsInterstitialLoading = false;
+        if (kDebugMode) debugPrint('❌ LevelPlay Shorts Interstitial failed to load');
+        _logAnalytics('shorts_interstitial_load_failed');
+        _scheduleShortsInterstitialRetry();
+      },
+    ));
+    ad.loadAd();
+  }
+
+  // ── Load Shorts Rewarded ──────────────────────────────────────────────────
+  void _loadShortsRewarded() {
+    if (!_initialized) return;
+    if (!_cfg.config.adNetworks.levelplayEnabled) return;
+    if (_shortsRewardedShowing || _shortsRewardedLoading) return;
+    _shortsRewardedRetryTimer?.cancel();
+    _shortsRewardedRetryTimer = null;
+    final ad = _shortsRewardedAd ??= LevelPlayRewardedAd(
+      adUnitId: _shortsRewardedAdUnitId,
+    );
+    _shortsRewardedLoading = true;
+    ad.setListener(_RewardedListener(
+      onLoaded: () {
+        _shortsRewardedLoading = false;
+        _shortsRewardedRetryCount = 0;
+        if (kDebugMode) debugPrint('✅ LevelPlay Shorts Rewarded loaded');
+        _logAnalytics('shorts_rewarded_load_success');
+      },
+      onFailed: () {
+        _shortsRewardedLoading = false;
+        if (kDebugMode) debugPrint('❌ LevelPlay Shorts Rewarded failed to load');
+        _logAnalytics('shorts_rewarded_load_failed');
+        _scheduleShortsRewardedRetry();
+      },
+      onRewarded: () {},
+      onClosed: () {},
+    ));
+    ad.loadAd();
+  }
+
+  void _scheduleShortsInterstitialRetry() {
+    final delay = _shortsInterstitialRetryCount < _retryBackoffSeconds.length
+        ? _retryBackoffSeconds[_shortsInterstitialRetryCount]
+        : _slowRetrySeconds;
+    _shortsInterstitialRetryCount++;
+    if (kDebugMode) {
+      debugPrint(
+        '⏱ Shorts Interstitial retry in ${delay}s (attempt $_shortsInterstitialRetryCount)',
+      );
+    }
+    _shortsInterstitialRetryTimer?.cancel();
+    _shortsInterstitialRetryTimer =
+        Timer(Duration(seconds: delay), _loadShortsInterstitial);
+  }
+
+  void _scheduleShortsRewardedRetry() {
+    final delay = _shortsRewardedRetryCount < _retryBackoffSeconds.length
+        ? _retryBackoffSeconds[_shortsRewardedRetryCount]
+        : _slowRetrySeconds;
+    _shortsRewardedRetryCount++;
+    if (kDebugMode) {
+      debugPrint(
+        '⏱ Shorts Rewarded retry in ${delay}s (attempt $_shortsRewardedRetryCount)',
+      );
+    }
+    _shortsRewardedRetryTimer?.cancel();
+    _shortsRewardedRetryTimer =
+        Timer(Duration(seconds: delay), _loadShortsRewarded);
   }
 
   // ── Session reset ─────────────────────────────────────────────────────────
@@ -377,6 +488,10 @@ class AdService extends GetxService {
 
   // ── Show Interstitial ─────────────────────────────────────────────────────
   Future<void> showInterstitialForScreen(String screenKey) async {
+    if (screenKey == 'shorts_feed') {
+      await showShortsInterstitial();
+      return;
+    }
     if (!_cfg.adsEnabled) return;
     if (!_cfg.canShowInterstitialOn(screenKey)) return;
     if (_isInGracePeriod) {
@@ -438,6 +553,13 @@ class AdService extends GetxService {
     required VoidCallback onRewarded,
     VoidCallback? onNotAvailable,
   }) async {
+    if (screenKey == 'shorts_unlock') {
+      await showShortsRewarded(
+        onRewarded: onRewarded,
+        onNotAvailable: onNotAvailable,
+      );
+      return;
+    }
     if (!_cfg.adsEnabled) {
       onNotAvailable?.call();
       return;
@@ -600,6 +722,243 @@ class AdService extends GetxService {
     onComplete();
   }
 
+  // ── Preload Shorts Ads ────────────────────────────────────────────────────
+  void preloadShortsAds() {
+    if (!_initialized) return;
+    if (!_cfg.config.adNetworks.levelplayEnabled) return;
+    if (_shortsInterstitialAd == null) {
+      _loadShortsInterstitial();
+    } else {
+      _shortsInterstitialAd!.isAdReady().then((ready) {
+        if (!ready && !_shortsInterstitialLoading) _loadShortsInterstitial();
+      });
+    }
+    if (_shortsRewardedAd == null) {
+      _loadShortsRewarded();
+    } else {
+      _shortsRewardedAd!.isAdReady().then((ready) {
+        if (!ready && !_shortsRewardedLoading) _loadShortsRewarded();
+      });
+    }
+  }
+
+  // ── Show Shorts Interstitial ──────────────────────────────────────────────
+  Future<bool> showShortsInterstitial() async {
+    if (!_cfg.adsEnabled || !_cfg.config.adNetworks.levelplayEnabled) {
+      return false;
+    }
+    if (_isInGracePeriod) {
+      if (kDebugMode) {
+        debugPrint('ℹ️ Skipping shorts interstitial — startup grace period');
+      }
+      return false;
+    }
+    if (_adCurrentlyShowing || _shortsInterstitialShowing) {
+      if (kDebugMode) {
+        debugPrint('ℹ️ Skipping shorts interstitial — ad already showing');
+      }
+      return false;
+    }
+
+    final ad = _shortsInterstitialAd;
+    if (ad == null) {
+      _loadShortsInterstitial();
+      return false;
+    }
+
+    var ready = await ad.isAdReady();
+    if (!ready && _shortsInterstitialLoading) {
+      // Brief grace wait if an ad is already in-flight from preload
+      for (var i = 0; i < 10; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (await ad.isAdReady()) {
+          ready = true;
+          break;
+        }
+        if (!_shortsInterstitialLoading) break;
+      }
+    }
+
+    if (!ready) {
+      if (kDebugMode) debugPrint('ℹ️ LevelPlay Shorts Interstitial not ready');
+      _loadShortsInterstitial();
+      return false;
+    }
+
+    _logAnalytics('shorts_interstitial_attempt');
+
+    final completer = Completer<bool>();
+    Timer? displayTimer;
+    Timer? safetyTimer;
+    var displayed = false;
+
+    void finish(bool shown) {
+      displayTimer?.cancel();
+      safetyTimer?.cancel();
+      _shortsInterstitialShowing = false;
+      _adCurrentlyShowing = false;
+      if (!completer.isCompleted) completer.complete(shown);
+    }
+
+    _shortsInterstitialShowing = true;
+    _adCurrentlyShowing = true;
+
+    ad.setListener(_InterstitialListener(
+      onLoaded: () {},
+      onFailed: () {},
+      onDisplayed: () {
+        displayed = true;
+        displayTimer?.cancel();
+        safetyTimer?.cancel();
+        safetyTimer = Timer(_adSafetyTimeout, () => finish(true));
+      },
+      onClosed: () {
+        _logAnalytics(
+          'shorts_interstitial_shown',
+          params: {'provider': 'levelplay'},
+        );
+        finish(true);
+        _loadShortsInterstitial();
+      },
+      onShowFailed: () {
+        finish(false);
+        _loadShortsInterstitial();
+      },
+    ));
+
+    displayTimer = Timer(_adDisplayTimeout, () {
+      if (displayed) return;
+      if (kDebugMode) debugPrint('⏱ Shorts Interstitial did not display in time');
+      finish(false);
+      _loadShortsInterstitial();
+    });
+
+    try {
+      await ad.showAd();
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ Shorts Interstitial showAd() threw: $e');
+      finish(false);
+      _loadShortsInterstitial();
+    }
+
+    return completer.future;
+  }
+
+  // ── Show Shorts Rewarded ──────────────────────────────────────────────────
+  Future<void> showShortsRewarded({
+    required VoidCallback onRewarded,
+    VoidCallback? onNotAvailable,
+  }) async {
+    if (!_cfg.adsEnabled || !_cfg.config.adNetworks.levelplayEnabled) {
+      onNotAvailable?.call();
+      return;
+    }
+    if (_adCurrentlyShowing || _shortsRewardedShowing) {
+      onNotAvailable?.call();
+      return;
+    }
+
+    final ad = _shortsRewardedAd;
+    if (ad == null) {
+      _loadShortsRewarded();
+      onNotAvailable?.call();
+      return;
+    }
+
+    var ready = await ad.isAdReady();
+    if (!ready && _shortsRewardedLoading) {
+      // Brief grace wait (up to 1.5s) if rewarded ad is already in-flight from preload
+      for (var i = 0; i < 15; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (await ad.isAdReady()) {
+          ready = true;
+          break;
+        }
+        if (!_shortsRewardedLoading) break;
+      }
+    }
+
+    if (!ready) {
+      if (kDebugMode) debugPrint('ℹ️ LevelPlay Shorts Rewarded not ready');
+      _loadShortsRewarded();
+      onNotAvailable?.call();
+      return;
+    }
+
+    _logAnalytics('shorts_rewarded_attempt');
+
+    final completer = Completer<_RewardedResult>();
+    Timer? displayTimer;
+    Timer? safetyTimer;
+    var displayed = false;
+    var rewardGranted = false;
+
+    _RewardedResult shownResult() => rewardGranted
+        ? _RewardedResult.shownRewarded
+        : _RewardedResult.shownNotRewarded;
+
+    void finish(_RewardedResult result) {
+      displayTimer?.cancel();
+      safetyTimer?.cancel();
+      _shortsRewardedShowing = false;
+      _adCurrentlyShowing = false;
+      if (!completer.isCompleted) completer.complete(result);
+    }
+
+    _shortsRewardedShowing = true;
+    _adCurrentlyShowing = true;
+
+    ad.setListener(_RewardedListener(
+      onLoaded: () {},
+      onFailed: () {},
+      onDisplayed: () {
+        displayed = true;
+        displayTimer?.cancel();
+        safetyTimer?.cancel();
+        safetyTimer = Timer(_adSafetyTimeout, () => finish(shownResult()));
+      },
+      onRewarded: () {
+        rewardGranted = true;
+        _logAnalytics(
+          'shorts_rewarded_granted',
+          params: {'provider': 'levelplay'},
+        );
+      },
+      onClosed: () {
+        finish(shownResult());
+        _loadShortsRewarded();
+      },
+      onShowFailed: () {
+        finish(_RewardedResult.notShown);
+        _loadShortsRewarded();
+      },
+    ));
+
+    displayTimer = Timer(_adDisplayTimeout, () {
+      if (displayed) return;
+      if (kDebugMode) debugPrint('⏱ Shorts Rewarded did not display in time');
+      finish(_RewardedResult.notShown);
+      _loadShortsRewarded();
+    });
+
+    try {
+      await ad.showAd();
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ Shorts Rewarded showAd() threw: $e');
+      finish(_RewardedResult.notShown);
+      _loadShortsRewarded();
+    }
+
+    final result = await completer.future;
+    if (result == _RewardedResult.shownRewarded) {
+      _logAnalytics('shorts_rewarded_shown');
+      onRewarded();
+    } else {
+      _logAnalytics('shorts_rewarded_no_fill');
+      onNotAvailable?.call();
+    }
+  }
+
   // ── App Open — no provider available, no-op ───────────────────────────────
   Future<void> showAppOpen() async {}
 
@@ -618,6 +977,12 @@ class AdService extends GetxService {
     _rewardedAd?.dispose();
     _interstitialAd = null;
     _rewardedAd = null;
+    _shortsInterstitialRetryTimer?.cancel();
+    _shortsRewardedRetryTimer?.cancel();
+    _shortsInterstitialAd?.dispose();
+    _shortsRewardedAd?.dispose();
+    _shortsInterstitialAd = null;
+    _shortsRewardedAd = null;
     super.onClose();
   }
 }

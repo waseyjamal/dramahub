@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "data_version": 1,
+  "min_build": 0,
+  "use_signed_urls": false,
+  "free_episodes_default": 10,
+  "max_players": 3,
+  "ads": {
+    "interstitial_enabled": true,
+    "interstitial_every_n_episodes": 4,
+    "interstitial_first_after": 3,
+    "interstitial_screen_key": "shorts_feed",
+    "rewarded_unlock_enabled": true,
+    "unlock_episodes_per_ad": 3,
+    "unlock_on_no_fill": false,
+    "rewarded_screen_key": "shorts_unlock"
+  }
+}

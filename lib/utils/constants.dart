@@ -3,12 +3,12 @@ import 'package:drama_hub/config/app_config_service.dart';
 class Constants {
   // App info
   static const String appName = 'Drama Hub';
-  static const String appVersion = '1.3.3';
+  static const String appVersion = '1.3.4';
 
   // ✅ ADDED — Single source of truth for current app version
   // Update this ONLY when releasing a new build
   // Matches versionCode in android/app/build.gradle.kts
-  static const int currentBuildVersion = 16;
+  static const int currentBuildVersion = 17;
 
   // API (placeholder for future use)
   static const String baseUrl = '';

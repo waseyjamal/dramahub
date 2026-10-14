@@ -98,6 +98,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: AppSpacing.lg),
 
+                // ── LIBRARY SECTION ────────────────────────
+                // Downloads lives here when the Shorts tab takes its bar slot.
+                const _SectionLabel(label: 'Library'),
+                _TileGroup(
+                  tiles: [
+                    _TileData(
+                      icon: Icons.download_for_offline_rounded,
+                      iconColor: Colors.greenAccent,
+                      title: 'Downloads',
+                      subtitle: 'Watch your saved episodes offline',
+                      onTap: () => Get.toNamed(AppRoutes.downloads),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+
                 // ── FEEDBACK SECTION ───────────────────────
                 const _SectionLabel(label: 'Feedback'),
                 _TileGroup(

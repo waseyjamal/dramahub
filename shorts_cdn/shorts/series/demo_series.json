@@ -1,0 +1,33 @@
+{
+  "id": "demo_series",
+  "title": "Demo Vertical Drama",
+  "description": "Sample entry. Replace with your real series.",
+  "poster": "https://media.example.com/shorts/demo_series/poster.jpg",
+  "genre": "",
+  "tags": [],
+  "totalEpisodes": 3,
+  "freeEpisodes": 2,
+  "episodes": [
+    {
+      "n": 1,
+      "title": "Episode 1",
+      "hls": "https://media.example.com/shorts/demo_series/ep1/master.m3u8",
+      "mp4": "https://media.example.com/shorts/demo_series/ep1.mp4",
+      "thumb": "https://media.example.com/shorts/demo_series/ep1.jpg"
+    },
+    {
+      "n": 2,
+      "title": "Episode 2",
+      "hls": "https://media.example.com/shorts/demo_series/ep2/master.m3u8",
+      "mp4": "https://media.example.com/shorts/demo_series/ep2.mp4",
+      "thumb": "https://media.example.com/shorts/demo_series/ep2.jpg"
+    },
+    {
+      "n": 3,
+      "title": "Episode 3",
+      "hls": "https://media.example.com/shorts/demo_series/ep3/master.m3u8",
+      "mp4": "https://media.example.com/shorts/demo_series/ep3.mp4",
+      "thumb": "https://media.example.com/shorts/demo_series/ep3.jpg"
+    }
+  ]
+}
